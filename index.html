@@ -3,50 +3,80 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="Apply for attachment or internship placement with the Driver & Vehicle Licensing Authority, Ghana. Submit your details and documents online." />
   <title>Attachment / Internship Application — DVLA Ghana</title>
+  <link rel="icon" type="image/jpeg" href="assets/dvla-logo.jpg" />
+  <link rel="apple-touch-icon" href="assets/dvla-logo.jpg" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js"
+      }
+    }
+  </script>
 </head>
 <body>
-  <header class="site-band">
-    <div class="band-inner">
-      <span class="crest" aria-hidden="true">★</span>
-      <span class="band-text">
-        <strong>Driver &amp; Vehicle Licensing Authority</strong>
-        <span>Ghana</span>
-      </span>
-      <span class="band-tag">Attachment Portal</span>
+  <div class="top-strip">
+    <div class="wrap">
+      <span>A service of the Driver &amp; Vehicle Licensing Authority, Ghana</span>
+      <span class="top-contact">Call Center: 030 276 2449</span>
     </div>
-    <div class="gold-rule" aria-hidden="true"></div>
+  </div>
+
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/dvla-logo.jpg" alt="DVLA Ghana logo" width="56" height="56" />
+        <span class="brand-text">
+          <strong>DVLA Ghana</strong>
+          <span>Driver &amp; Vehicle Licensing Authority</span>
+        </span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation">
+        <a href="index.html" class="active">Apply</a>
+        <a href="https://dvla.gov.gh/services">Services</a>
+        <a href="https://dvla.gov.gh/fees-and-charges">Fees &amp; Charges</a>
+        <a href="admin.html">Admin Login</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="container">
-    <section class="hero">
-      <h1>Attachment / Internship Application</h1>
-      <p>Apply online — no need to travel with papers. Your documents go straight to the reviewing office.</p>
-      <ol class="steps">
-        <li><span>1</span> Fill in your details</li>
-        <li><span>2</span> Upload school letter, CV &amp; Ghana Card</li>
-        <li><span>3</span> Submit and watch your email</li>
-      </ol>
+  <section class="hero">
+    <div class="wrap">
+      <p class="hero-kicker">Student Attachment &amp; Internship</p>
+      <h1>Application Portal</h1>
+      <p class="hero-sub">Fill the form, upload your school letter, CV and Ghana Card — no need to travel with papers. We will confirm receipt by email.</p>
+    </div>
+  </section>
+
+  <main class="wrap">
+    <section class="steps" aria-label="How it works">
+      <div class="step"><span>1</span><div><strong>Fill the form</strong><p>Your details, school and placement dates.</p></div></div>
+      <div class="step"><span>2</span><div><strong>Upload documents</strong><p>School letter, CV and Ghana Card (PDF/JPG).</p></div></div>
+      <div class="step"><span>3</span><div><strong>Get our response</strong><p>Watch your email for approval or feedback.</p></div></div>
     </section>
 
     <form id="submission-form" novalidate>
-      <fieldset>
-        <legend>Personal details</legend>
+      <section class="card">
+        <h2>Personal Details</h2>
         <label>Full Name <input name="fullName" required minlength="2" maxlength="100" autocomplete="name" /></label>
         <div class="row">
           <label>Phone <input name="phone" required type="tel" placeholder="e.g. 0241234567" autocomplete="tel" /></label>
           <label>Email <input name="email" required type="email" autocomplete="email" /></label>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend>School &amp; placement</legend>
+      <section class="card">
+        <h2>School &amp; Placement</h2>
         <div class="row">
-          <label>School <input name="school" required /></label>
+          <label>School <input name="school" required autocomplete="organization" /></label>
           <label>Course <input name="course" required /></label>
         </div>
         <label>Company applying to <input name="company" required minlength="2" maxlength="100" placeholder="Type company name" /></label>
@@ -54,24 +84,46 @@
           <label>Start date <input name="startDate" required type="date" /></label>
           <label>End date <input name="endDate" required type="date" /></label>
         </div>
-      </fieldset>
+      </section>
 
-      <fieldset>
-        <legend>Documents <small>PDF, JPG or PNG · max 5MB each</small></legend>
-        <label class="upload">Letter from school <input name="schoolLetter" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
-        <label class="upload">CV <input name="cv" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
-        <label class="upload">Ghana Card <input name="ghanaCard" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
-      </fieldset>
+      <section class="card">
+        <h2>Supporting Documents</h2>
+        <p class="hint">PDF, JPG or PNG · max 5MB per file</p>
+        <label class="upload"><span>Letter from school</span> <input name="schoolLetter" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+        <label class="upload"><span>CV</span> <input name="cv" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+        <label class="upload"><span>Ghana Card</span> <input name="ghanaCard" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+      </section>
 
       <progress id="upload-progress" value="0" max="100" hidden></progress>
-      <button type="submit" class="cta">Submit application</button>
+      <button type="submit" class="cta">Submit Application</button>
       <p id="form-status" role="status"></p>
     </form>
-
-    <footer class="site-foot">
-      <p>Driver &amp; Vehicle Licensing Authority · Cantonments, Accra · 030 276 2449</p>
-    </footer>
   </main>
+
+  <footer class="site-footer">
+    <div class="wrap footer-grid">
+      <div>
+        <h3>DVLA Ghana</h3>
+        <p>Providing premium and secure driver and vehicle licensing services through modernization and technology.</p>
+      </div>
+      <div>
+        <h3>Services</h3>
+        <ul>
+          <li><a href="https://dvla.gov.gh/services">Vehicle Registration</a></li>
+          <li><a href="https://dvla.gov.gh/fees-and-charges">Fees &amp; Charges</a></li>
+          <li><a href="https://dvla.gov.gh/">Locate Station</a></li>
+          <li><a href="https://dvla.gov.gh/">Help &amp; Support</a></li>
+        </ul>
+      </div>
+      <div>
+        <h3>Contact</h3>
+        <p>Head Office<br />Cantonments, Accra, Ghana<br />Call Center<br />030 276 2449</p>
+      </div>
+    </div>
+    <div class="footer-base">
+      <div class="wrap">&copy; 2026 Driver and Vehicle Licensing Authority. All rights reserved. | Privacy Policy</div>
+    </div>
+  </footer>
   <script type="module" src="js/student-form.js"></script>
 </body>
 </html>

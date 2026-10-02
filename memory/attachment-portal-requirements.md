@@ -107,13 +107,23 @@ Collections for mail:
 - Cloudinary preset: locked to `submissions/` folder, file types + max size.
   Treat preset name as sensitive.
 
-## 9. Theme (DVLA Ghana — locked 2026-10-02)
-- Navy #0A1F44 (authority band, headings), Royal blue #1345A0 (primary/focus),
-  Plate gold #F5B301 (rule, CTA, badges), paper #FFFFFF, slate #EEF1F6 bg.
-- Ghana red #CE1126 = errors only. Green #006B3F = success only.
-- Type: Public Sans (Google Fonts). Gold focus ring (3px) for visibility.
-- Form page: navy band with gold crest + gold rule, step strip (Fill→Upload→Submit),
-  grouped fieldsets (Personal / School & placement / Documents).
+## 9. Theme (DVLA Ghana UI — locked 2026-10-02, revised to mirror dvla.gov.gh)
+- dvla.gov.gh is bot-walled (scraping blocked); favicon.ico there returns
+  challenge HTML and online.dvla.gov.gh/favicon.ico is 0 bytes.
+- Logo + favicon: genuine DVLA emblem from Ghana.gov MDA registry
+  (https://govgh-uat.s3.eu-west-1.amazonaws.com/images/mda/indexjpg_1585776545.jpeg),
+  saved as `assets/dvla-logo.jpg`, linked as icon + apple-touch-icon on both pages.
+- UI language copied from dvla.gov.gh / ghana.gov.gh: thin navy utility strip
+  (Call Center 030 276 2449), white sticky header with logo left + UPPERCASE nav
+  with 6px gold (#FFD147) hover underline, navy hero band, service-card steps row,
+  form grouped in white cards with navy h2 + gold underline, navy footer with
+  Services/Contact columns + © 2026 DVLA base bar.
+- Tokens: navy #0B2A5B, navy-dark #071C40, gold #FFD147, ink #1A1A1A,
+  red #CE1126 (errors only), green #107625 (success only).
+- Type: Source Sans 3 (Ghana gov standard). Both pages share css/style.css.
+- NOTE 2026-10-02: user wired Firebase (project attachment-portal-f4285) directly
+  in js/* + admin importmap; index.html importmap restored after UI rewrite —
+  do NOT full-rewrite index.html without preserving the importmap block.
 
 ## 10. Open Items (need from user)
 - [ ] Firebase project exists or `firebase init` from scratch?
