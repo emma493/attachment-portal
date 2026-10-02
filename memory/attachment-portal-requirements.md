@@ -136,6 +136,19 @@ Collections for mail:
   returns to toggle), shared js/nav.js on both pages. Mobile polish: 16px inputs
   (no iOS zoom), ≥48px sticky Back/Continue bar with safe-area inset, stacked
   review rows, 100dvh drawer.
+- Wizard paging fix + premium pass (2026-10-02, user: "can't be sold for $0.01"):
+  BUG FOUND — `.card { display:grid }` overrode `[hidden]`, so all steps showed
+  at once. Fixed with explicit `.wizard-step[hidden] { display:none }`.
+  Research applied (GOV.UK Design System validation/error-summary/file-upload,
+  PatternFly multi-file-upload, 2026 form-UX consensus: numbered steps + honest
+  progress, easy opener first, uploads delayed, inline errors + summary, never
+  color-alone): error-summary box with anchor links at form top, per-field
+  inline errors + red input borders + aria-invalid, step ledes stating each
+  step's purpose, advanced file pickers (tap/drag dropzone, instant local
+  preview — image thumbnails via object URLs, PDF badge — View in new tab,
+  Remove, per-file size/type messages, drag-drop fallback), post-submit success
+  panel with reference + "submit another". Submit/Cloudinary/Firestore logic
+  untouched; file input names unchanged.
 
 ## 10. Open Items (need from user)
 - [ ] Firebase project exists or `firebase init` from scratch?

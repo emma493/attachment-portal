@@ -5,6 +5,7 @@
   "type": "module",
   "description": "DVLA Attachment Portal - Firebase + Cloudinary + Netlify",
   "dependencies": {
-    "cloudinary": "^2.11.0"
+    "cloudinary": "^2.11.0",
+    "nodemailer": "^6.9.14"
   }
 }

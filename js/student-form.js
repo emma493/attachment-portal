@@ -54,36 +54,85 @@ function fileOf(name) {
   const el = form?.elements.namedItem(name);
   return el && el.files && el.files[0] ? el.files[0] : null;
 }
-function fail(msg) {
-  status.textContent = msg;
+const errorSummary = document.getElementById("error-summary");
+const errorList = document.getElementById("error-list");
+// Which step each field lives on (for jumping to the first problem)
+const STEP_OF = {
+  fullName: 0, phone: 0, email: 0,
+  school: 1, course: 1, company: 1, startDate: 1, endDate: 1,
+  schoolLetter: 2, cv: 2, ghanaCard: 2,
+};
+
+function clearErrors() {
+  if (errorSummary) errorSummary.hidden = true;
+  if (errorList) errorList.innerHTML = "";
+  document.querySelectorAll(".field.has-error, .file-picker.has-error").forEach((w) => w.classList.remove("has-error"));
+  document.querySelectorAll(".field-error").forEach((p) => { p.hidden = true; p.textContent = ""; });
+  form?.querySelectorAll("[aria-invalid]").forEach((el) => el.removeAttribute("aria-invalid"));
+  status.textContent = "";
+  status.className = "";
+}
+
+// errors are { field, msg }; inline messages use short text (no "Step N:" prefix)
+function showErrors(errors) {
+  clearErrors();
+  if (!errors.length) return true;
+  errors.forEach(({ field, msg }) => {
+    const wrap = document.getElementById(`f-${field}`);
+    const msgEl = document.getElementById(`err-${field}`);
+    if (wrap) wrap.classList.add("has-error");
+    if (msgEl) { msgEl.textContent = msg; msgEl.hidden = false; }
+    const input = form?.elements.namedItem(field);
+    if (input && "setAttribute" in input) input.setAttribute("aria-invalid", "true");
+    if (errorList) {
+      const li = document.createElement("li");
+      const a = document.createElement("a");
+      a.href = `#f-${field}`;
+      a.textContent = msg;
+      li.appendChild(a);
+      errorList.appendChild(li);
+    }
+  });
+  // Jump to the step holding the first problem, then present the summary
+  const firstStep = STEP_OF[errors[0].field];
+  if (typeof firstStep === "number" && firstStep !== currentStep) showStep(firstStep);
+  if (errorSummary) {
+    errorSummary.hidden = false;
+    errorSummary.focus({ preventScroll: true });
+    errorSummary.scrollIntoView();
+  }
+  status.textContent = "Fix the problems above, then continue.";
   status.className = "error";
   return false;
 }
+
 function validEmail(v) {
   return /^\S+@\S+\.\S+$/.test(v);
 }
 
-function validateStep(n) {
+// Collect this step's problems (empty array = valid)
+function stepErrors(n) {
+  const errs = [];
   if (n === 0) {
-    if (field("fullName").length < 2) return fail("Step 1: enter your full name.");
-    if (!validGhanaPhone(field("phone"))) return fail("Step 1: enter a valid Ghana phone (e.g. 0241234567).");
-    if (!validEmail(field("email"))) return fail("Step 1: enter a valid email address.");
+    if (field("fullName").length < 2) errs.push({ field: "fullName", msg: "Enter your full name" });
+    if (!validGhanaPhone(field("phone"))) errs.push({ field: "phone", msg: "Enter a valid Ghana phone, like 0241234567" });
+    if (!validEmail(field("email"))) errs.push({ field: "email", msg: "Enter a valid email address" });
   }
   if (n === 1) {
-    if (!field("school")) return fail("Step 2: enter your school.");
-    if (!field("course")) return fail("Step 2: enter your course.");
-    if (field("company").length < 2) return fail("Step 2: type the company name.");
-    if (!field("startDate") || !field("endDate")) return fail("Step 2: pick start and end dates.");
-    if (new Date(field("endDate")) <= new Date(field("startDate"))) return fail("Step 2: end date must be after start date.");
+    if (!field("school")) errs.push({ field: "school", msg: "Enter your school" });
+    if (!field("course")) errs.push({ field: "course", msg: "Enter your course" });
+    if (field("company").length < 2) errs.push({ field: "company", msg: "Type the company name" });
+    if (!field("startDate")) errs.push({ field: "startDate", msg: "Pick a start date" });
+    if (!field("endDate")) errs.push({ field: "endDate", msg: "Pick an end date" });
+    else if (field("startDate") && new Date(field("endDate")) <= new Date(field("startDate")))
+      errs.push({ field: "endDate", msg: "End date must be after start date" });
   }
   if (n === 2) {
     for (const key of Object.keys(FILE_LABELS)) {
-      if (!validFile(fileOf(key))) return fail(`Step 3: ${FILE_LABELS[key]} must be PDF/JPG/PNG under ${MAX_FILE_MB}MB.`);
+      if (!validFile(fileOf(key))) errs.push({ field: key, msg: `${FILE_LABELS[key]} must be PDF, JPG or PNG under ${MAX_FILE_MB}MB` });
     }
   }
-  status.textContent = "";
-  status.className = "";
-  return true;
+  return errs;
 }
 
 function renderReview() {
@@ -135,30 +184,144 @@ function showStep(n) {
 }
 
 backBtn?.addEventListener("click", () => {
-  status.textContent = "";
-  status.className = "";
+  clearErrors();
   showStep(currentStep - 1);
 });
 nextBtn?.addEventListener("click", () => {
-  if (validateStep(currentStep)) showStep(currentStep + 1);
+  if (showErrors(stepErrors(currentStep))) showStep(currentStep + 1);
 });
 progressBtns.forEach((b) => b.addEventListener("click", () => {
   const t = Number(b.dataset.goto);
   if (t <= maxVisited) {
-    status.textContent = "";
-    status.className = "";
+    clearErrors();
     showStep(t);
   } else {
-    fail("Finish this step first.");
+    showErrors([{ field: steps[currentStep].querySelector("input, select")?.name || "fullName", msg: "Finish this step first" }]);
   }
 }));
 if (steps.length) showStep(0);
+
+// Summary links: jump to the error's step first so the anchor target is visible
+errorList?.addEventListener("click", (e) => {
+  const a = e.target.closest("a");
+  const fname = a?.getAttribute("href")?.replace("#f-", "");
+  const st = fname ? STEP_OF[fname] : undefined;
+  if (typeof st === "number" && st !== currentStep) {
+    e.preventDefault();
+    showStep(st);
+    requestAnimationFrame(() => document.getElementById(`f-${fname}`)?.scrollIntoView());
+  }
+});
+
+document.getElementById("success-again")?.addEventListener("click", () => {
+  const panel = document.getElementById("success-panel");
+  if (panel) panel.hidden = true;
+  form.hidden = false;
+  clearErrors();
+  showStep(0);
+});
+
+// --- Advanced file picker: instant local preview, View, Remove, drag & drop ---
+const objectUrls = new Map();
+function revokeUrl(name) {
+  const u = objectUrls.get(name);
+  if (u) { URL.revokeObjectURL(u); objectUrls.delete(name); }
+}
+function fmtSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / 1048576).toFixed(2)} MB`;
+}
+function renderPreview(picker) {
+  const name = picker.dataset.field;
+  const input = picker.querySelector('input[type="file"]');
+  const empty = picker.querySelector(".fp-empty");
+  const preview = picker.querySelector(".fp-preview");
+  const img = picker.querySelector("img.fp-thumb");
+  const badge = picker.querySelector(".fp-badge");
+  const metaName = picker.querySelector(".fp-meta strong");
+  const view = picker.querySelector(".fp-view");
+  const file = input?.files?.[0];
+  revokeUrl(name);
+  if (!file) {
+    if (empty) empty.hidden = false;
+    if (preview) preview.hidden = true;
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  objectUrls.set(name, url);
+  const isImage = file.type.startsWith("image/");
+  if (img) {
+    if (isImage) { img.src = url; img.alt = `${FILE_LABELS[name]} preview`; img.hidden = false; }
+    else { img.removeAttribute("src"); img.hidden = true; }
+  }
+  if (badge) badge.hidden = isImage;
+  if (metaName) metaName.textContent = `${file.name} · ${fmtSize(file.size)}`;
+  if (view) view.href = url;
+  if (empty) empty.hidden = true;
+  if (preview) preview.hidden = false;
+  // Clear any previous error on this picker now a file is chosen
+  picker.classList.remove("has-error");
+  const msgEl = document.getElementById(`err-${name}`);
+  if (msgEl) { msgEl.hidden = true; msgEl.textContent = ""; }
+}
+function clearPicker(picker) {
+  const input = picker.querySelector('input[type="file"]');
+  if (input) input.value = "";
+  renderPreview(picker);
+}
+
+document.querySelectorAll(".file-picker").forEach((picker) => {
+  const name = picker.dataset.field;
+  const zone = picker.querySelector(".fp-zone");
+  const input = picker.querySelector('input[type="file"]');
+  const view = picker.querySelector(".fp-view");
+  const remove = picker.querySelector(".fp-remove");
+  input?.addEventListener("change", () => {
+    const f = input.files?.[0];
+    if (f && !ALLOWED_TYPES.includes(f.type)) {
+      input.value = "";
+      renderPreview(picker);
+      showErrors([{ field: name, msg: `${FILE_LABELS[name]} must be PDF, JPG or PNG (that file is ${f.type || "an unsupported type"})` }]);
+      return;
+    }
+    if (f && f.size > MAX_FILE_MB * 1024 * 1024) {
+      input.value = "";
+      renderPreview(picker);
+      showErrors([{ field: name, msg: `${FILE_LABELS[name]} is ${fmtSize(f.size)} — max is ${MAX_FILE_MB}MB` }]);
+      return;
+    }
+    renderPreview(picker);
+    clearErrors();
+  });
+  view?.addEventListener("click", (e) => e.preventDefault() || e.stopPropagation());
+  // Label clicks also open the dialog; prevent that when using View/Remove
+  view?.addEventListener("click", () => window.open(view.href, "_blank", "noopener"));
+  remove?.addEventListener("click", (e) => { e.preventDefault(); e.stopPropagation(); clearPicker(picker); });
+  remove?.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") e.stopPropagation(); });
+  // Drag & drop onto the zone
+  ["dragenter", "dragover"].forEach((ev) => zone?.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.add("dragover"); }));
+  ["dragleave", "drop"].forEach((ev) => zone?.addEventListener(ev, (e) => { e.preventDefault(); zone.classList.remove("dragover"); }));
+  zone?.addEventListener("drop", (e) => {
+    const f = e.dataTransfer?.files?.[0];
+    if (f && input) {
+      try {
+        const dt = new DataTransfer();
+        dt.items.add(f);
+        input.files = dt.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      } catch {
+        showErrors([{ field: name, msg: `${FILE_LABELS[name]}: your browser blocked drag & drop — tap to choose the file instead` }]);
+      }
+    }
+  });
+});
 
 form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   // Enter key on an early step: advance instead of submitting
   if (currentStep < TOTAL - 1) {
-    if (validateStep(currentStep)) showStep(currentStep + 1);
+    if (showErrors(stepErrors(currentStep))) showStep(currentStep + 1);
     return;
   }
   const data = new FormData(form);
@@ -177,28 +340,8 @@ form?.addEventListener("submit", async (e) => {
     return;
   }
 
-  if (!fullName || !phone || !email || !school || !course || !company || !startDate || !endDate) {
-    status.textContent = "Please fill in all required fields.";
-    status.className = "error";
-    return;
-  }
-  if (!validGhanaPhone(phone)) {
-    status.textContent = "Enter a valid Ghana phone (e.g. 0241234567).";
-    status.className = "error";
-    return;
-  }
-  if (new Date(endDate) <= new Date(startDate)) {
-    status.textContent = "End date must be after start date.";
-    status.className = "error";
-    return;
-  }
-  for (const key of ["schoolLetter", "cv", "ghanaCard"]) {
-    if (!validFile(data.get(key))) {
-      status.textContent = `${key}: must be PDF/JPG/PNG under ${MAX_FILE_MB}MB.`;
-      status.className = "error";
-      return;
-    }
-  }
+  // Defense in depth: re-check every step, jump to the first problem
+  if (!showErrors([...stepErrors(0), ...stepErrors(1), ...stepErrors(2)])) return;
 
   const submitBtn = form.querySelector('button[type="submit"]');
   submitBtn.disabled = true;
@@ -244,9 +387,15 @@ form?.addEventListener("submit", async (e) => {
     }).catch(() => {});
 
     if (progress) progress.value = 100;
-    status.textContent = `Submitted! Reference: ${docRef.id}. Check your email for confirmation.`;
-    status.className = "success";
+    document.querySelectorAll(".file-picker").forEach(clearPicker);
     form.reset();
+    clearErrors();
+    if (progress) progress.hidden = true;
+    const panel = document.getElementById("success-panel");
+    const ref = document.getElementById("success-ref");
+    if (ref) ref.textContent = docRef.id;
+    form.hidden = true;
+    if (panel) { panel.hidden = false; panel.scrollIntoView(); }
   } catch (err) {
     console.error(err);
     status.textContent = `Submit failed: ${err.message}. Try again.`;
