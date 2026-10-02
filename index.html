@@ -11,6 +11,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
+  <noscript><style>.wizard-step[hidden] { display: grid; } .wizard-nav, .wizard-progress { display: none; }</style></noscript>
   <script type="importmap">
     {
       "imports": {
@@ -39,14 +40,18 @@
           <span>Driver &amp; Vehicle Licensing Authority</span>
         </span>
       </a>
-      <nav class="main-nav" aria-label="Main navigation">
+      <nav class="main-nav" aria-label="Main navigation" id="main-nav">
         <a href="index.html" class="active">Apply</a>
         <a href="https://dvla.gov.gh/services">Services</a>
         <a href="https://dvla.gov.gh/fees-and-charges">Fees &amp; Charges</a>
         <a href="admin.html">Admin Login</a>
       </nav>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Open menu">
+        <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+      </button>
     </div>
   </header>
+  <div class="nav-scrim" hidden></div>
 
   <section class="hero">
     <div class="wrap">
@@ -63,9 +68,19 @@
       <div class="step"><span>3</span><div><strong>Get our response</strong><p>Watch your email for approval or feedback.</p></div></div>
     </section>
 
+    <div class="wizard-progress" aria-label="Application progress">
+      <p id="step-count" aria-live="polite">Step 1 of 4</p>
+      <ol>
+        <li><button type="button" data-goto="0" aria-current="step"><span>1</span> Personal</button></li>
+        <li><button type="button" data-goto="1"><span>2</span> School</button></li>
+        <li><button type="button" data-goto="2"><span>3</span> Documents</button></li>
+        <li><button type="button" data-goto="3"><span>4</span> Review</button></li>
+      </ol>
+    </div>
+
     <form id="submission-form" novalidate>
-      <section class="card">
-        <h2>Personal Details</h2>
+      <section class="card wizard-step" data-step="0" aria-labelledby="step-h-1">
+        <h2 id="step-h-1" tabindex="-1">Personal Details</h2>
         <label>Full Name <input name="fullName" required minlength="2" maxlength="100" autocomplete="name" /></label>
         <div class="row">
           <label>Phone <input name="phone" required type="tel" placeholder="e.g. 0241234567" autocomplete="tel" /></label>
@@ -73,8 +88,8 @@
         </div>
       </section>
 
-      <section class="card">
-        <h2>School &amp; Placement</h2>
+      <section class="card wizard-step" data-step="1" aria-labelledby="step-h-2" hidden>
+        <h2 id="step-h-2" tabindex="-1">School &amp; Placement</h2>
         <div class="row">
           <label>School <input name="school" required autocomplete="organization" /></label>
           <label>Course <input name="course" required /></label>
@@ -86,16 +101,26 @@
         </div>
       </section>
 
-      <section class="card">
-        <h2>Supporting Documents</h2>
+      <section class="card wizard-step" data-step="2" aria-labelledby="step-h-3" hidden>
+        <h2 id="step-h-3" tabindex="-1">Supporting Documents</h2>
         <p class="hint">PDF, JPG or PNG · max 5MB per file</p>
         <label class="upload"><span>Letter from school</span> <input name="schoolLetter" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
         <label class="upload"><span>CV</span> <input name="cv" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
         <label class="upload"><span>Ghana Card</span> <input name="ghanaCard" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
       </section>
 
+      <section class="card wizard-step" data-step="3" aria-labelledby="step-h-4" hidden>
+        <h2 id="step-h-4" tabindex="-1">Review &amp; Submit</h2>
+        <p class="hint">Check everything before submitting — uploads use mobile data.</p>
+        <dl id="review-list" class="review"></dl>
+      </section>
+
       <progress id="upload-progress" value="0" max="100" hidden></progress>
-      <button type="submit" class="cta">Submit Application</button>
+      <div class="wizard-nav">
+        <button type="button" id="step-back" class="ghost">Back</button>
+        <button type="button" id="step-next" class="cta">Continue</button>
+        <button type="submit" id="step-submit" class="cta" hidden>Submit Application</button>
+      </div>
       <p id="form-status" role="status"></p>
     </form>
   </main>
@@ -125,5 +150,6 @@
     </div>
   </footer>
   <script type="module" src="js/student-form.js"></script>
+  <script src="js/nav.js" defer></script>
 </body>
 </html>

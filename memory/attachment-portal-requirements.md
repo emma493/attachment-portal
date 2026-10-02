@@ -124,6 +124,18 @@ Collections for mail:
 - NOTE 2026-10-02: user wired Firebase (project attachment-portal-f4285) directly
   in js/* + admin importmap; index.html importmap restored after UI rewrite —
   do NOT full-rewrite index.html without preserving the importmap block.
+- Wizard (2026-10-02, user request — most users on mobile): form is 4 steps
+  (1 Personal: name/phone/email, 2 School & placement, 3 Documents, 4 Review &
+  Submit). Single <form>, panels hidden per step, per-step validation reusing
+  Ghana-phone/date/file checks, Enter key advances instead of submitting early,
+  review screen lists values + file names/sizes (XSS-safe textContent),
+  no-JS fallback shows all steps. Controller in js/student-form.js; submit/
+  Cloudinary/Firestore logic untouched.
+- Mobile nav (2026-10-02): ≤720px the long nav bar becomes a hamburger opening
+  a closable right-side drawer (overlay scrim, ✕/Esc/scrim-tap to close, focus
+  returns to toggle), shared js/nav.js on both pages. Mobile polish: 16px inputs
+  (no iOS zoom), ≥48px sticky Back/Continue bar with safe-area inset, stacked
+  review rows, 100dvh drawer.
 
 ## 10. Open Items (need from user)
 - [ ] Firebase project exists or `firebase init` from scratch?

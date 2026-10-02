@@ -1,0 +1,10 @@
+{
+  "name": "attachment-portal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "DVLA Attachment Portal - Firebase + Cloudinary + Netlify",
+  "dependencies": {
+    "cloudinary": "^2.11.0"
+  }
+}

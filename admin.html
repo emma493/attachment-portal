@@ -37,12 +37,16 @@
           <span>Driver &amp; Vehicle Licensing Authority</span>
         </span>
       </a>
-      <nav class="main-nav" aria-label="Main navigation">
+      <nav class="main-nav" aria-label="Main navigation" id="main-nav">
         <a href="index.html">Apply</a>
         <a href="admin.html" class="active">Admin Login</a>
       </nav>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Open menu">
+        <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+      </button>
     </div>
   </header>
+  <div class="nav-scrim" hidden></div>
   <section class="hero hero-slim">
     <div class="wrap">
       <p class="hero-kicker">Staff only</p>
@@ -79,5 +83,6 @@
     </div>
   </footer>
   <script type="module" src="js/admin.js"></script>
+  <script src="js/nav.js" defer></script>
 </body>
 </html>

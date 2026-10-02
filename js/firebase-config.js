@@ -23,8 +23,10 @@ export const firebaseConfig = {
   measurementId: envConfig.measurementId || "G-83JN1W27BW",
 };
 export const cloudinaryConfig = {
-  cloudName: envCloudinary.cloudName || "PASTE_ME",
-  uploadPreset: envCloudinary.uploadPreset || "PASTE_ME",
+  cloudName: envCloudinary.cloudName || "gpsslmw7",
+  uploadPreset: envCloudinary.uploadPreset || "submissions",
+  // NOTE: never put api_key / api_secret here — frontend uses unsigned
+  // preset only. Secrets belong in Netlify env for Functions, if ever needed.
 };
 export const MAX_FILE_MB = 5;
 export const ALLOWED_TYPES = ["application/pdf", "image/jpeg", "image/png", "image/jpg"];
