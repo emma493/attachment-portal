@@ -107,7 +107,15 @@ Collections for mail:
 - Cloudinary preset: locked to `submissions/` folder, file types + max size.
   Treat preset name as sensitive.
 
-## 9. Open Items (need from user)
+## 9. Theme (DVLA Ghana — locked 2026-10-02)
+- Navy #0A1F44 (authority band, headings), Royal blue #1345A0 (primary/focus),
+  Plate gold #F5B301 (rule, CTA, badges), paper #FFFFFF, slate #EEF1F6 bg.
+- Ghana red #CE1126 = errors only. Green #006B3F = success only.
+- Type: Public Sans (Google Fonts). Gold focus ring (3px) for visibility.
+- Form page: navy band with gold crest + gold rule, step strip (Fill→Upload→Submit),
+  grouped fieldsets (Personal / School & placement / Documents).
+
+## 10. Open Items (need from user)
 - [ ] Firebase project exists or `firebase init` from scratch?
 - [ ] Brevo sender address + custom domain (or Gmail for now)?
 - [ ] Admin login email(s)?

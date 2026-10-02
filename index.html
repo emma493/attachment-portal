@@ -3,29 +3,74 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Attachment / Internship Submission Portal</title>
+  <title>Attachment / Internship Application — DVLA Ghana</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Public+Sans:wght@400;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <header class="site-band">
+    <div class="band-inner">
+      <span class="crest" aria-hidden="true">★</span>
+      <span class="band-text">
+        <strong>Driver &amp; Vehicle Licensing Authority</strong>
+        <span>Ghana</span>
+      </span>
+      <span class="band-tag">Attachment Portal</span>
+    </div>
+    <div class="gold-rule" aria-hidden="true"></div>
+  </header>
+
   <main class="container">
-    <h1>Attachment / Internship Application</h1>
-    <p>Fill the form, upload your documents, and submit. No need to travel with papers.</p>
-    <form id="submission-form">
-      <label>Full Name <input name="fullName" required minlength="2" maxlength="100" /></label>
-      <label>School <input name="school" required /></label>
-      <label>Course <input name="course" required /></label>
-      <label>Phone <input name="phone" required type="tel" placeholder="e.g. 0241234567" /></label>
-      <label>Email <input name="email" required type="email" /></label>
-      <label>Company applying to <input name="company" required minlength="2" maxlength="100" placeholder="Type company name" /></label>
-      <label>Start date <input name="startDate" required type="date" /></label>
-      <label>End date <input name="endDate" required type="date" /></label>
-      <label>Letter from school (PDF/JPG, max 5MB) <input name="schoolLetter" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
-      <label>CV (PDF/JPG, max 5MB) <input name="cv" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
-      <label>Ghana Card (PDF/JPG, max 5MB) <input name="ghanaCard" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+    <section class="hero">
+      <h1>Attachment / Internship Application</h1>
+      <p>Apply online — no need to travel with papers. Your documents go straight to the reviewing office.</p>
+      <ol class="steps">
+        <li><span>1</span> Fill in your details</li>
+        <li><span>2</span> Upload school letter, CV &amp; Ghana Card</li>
+        <li><span>3</span> Submit and watch your email</li>
+      </ol>
+    </section>
+
+    <form id="submission-form" novalidate>
+      <fieldset>
+        <legend>Personal details</legend>
+        <label>Full Name <input name="fullName" required minlength="2" maxlength="100" autocomplete="name" /></label>
+        <div class="row">
+          <label>Phone <input name="phone" required type="tel" placeholder="e.g. 0241234567" autocomplete="tel" /></label>
+          <label>Email <input name="email" required type="email" autocomplete="email" /></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>School &amp; placement</legend>
+        <div class="row">
+          <label>School <input name="school" required /></label>
+          <label>Course <input name="course" required /></label>
+        </div>
+        <label>Company applying to <input name="company" required minlength="2" maxlength="100" placeholder="Type company name" /></label>
+        <div class="row">
+          <label>Start date <input name="startDate" required type="date" /></label>
+          <label>End date <input name="endDate" required type="date" /></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Documents <small>PDF, JPG or PNG · max 5MB each</small></legend>
+        <label class="upload">Letter from school <input name="schoolLetter" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+        <label class="upload">CV <input name="cv" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+        <label class="upload">Ghana Card <input name="ghanaCard" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+      </fieldset>
+
       <progress id="upload-progress" value="0" max="100" hidden></progress>
-      <button type="submit">Submit</button>
+      <button type="submit" class="cta">Submit application</button>
       <p id="form-status" role="status"></p>
     </form>
+
+    <footer class="site-foot">
+      <p>Driver &amp; Vehicle Licensing Authority · Cantonments, Accra · 030 276 2449</p>
+    </footer>
   </main>
   <script type="module" src="js/student-form.js"></script>
 </body>

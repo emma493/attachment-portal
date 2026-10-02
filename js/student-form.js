@@ -17,11 +17,13 @@ form?.addEventListener("submit", async (e) => {
   const data = new FormData(form);
   if (new Date(data.get("endDate")) <= new Date(data.get("startDate"))) {
     status.textContent = "End date must be after start date.";
+    status.className = "error";
     return;
   }
   for (const key of ["schoolLetter", "cv", "ghanaCard"]) {
     if (!validFile(data.get(key))) {
       status.textContent = `${key}: must be PDF/JPG/PNG under ${MAX_FILE_MB}MB.`;
+      status.className = "error";
       return;
     }
   }
