@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Attachment / Internship Submission Portal</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Attachment / Internship Application</h1>
+    <p>Fill the form, upload your documents, and submit. No need to travel with papers.</p>
+    <form id="submission-form">
+      <label>Full Name <input name="fullName" required minlength="2" maxlength="100" /></label>
+      <label>School <input name="school" required /></label>
+      <label>Course <input name="course" required /></label>
+      <label>Phone <input name="phone" required type="tel" placeholder="e.g. 0241234567" /></label>
+      <label>Email <input name="email" required type="email" /></label>
+      <label>Company applying to <input name="company" required minlength="2" maxlength="100" placeholder="Type company name" /></label>
+      <label>Start date <input name="startDate" required type="date" /></label>
+      <label>End date <input name="endDate" required type="date" /></label>
+      <label>Letter from school (PDF/JPG, max 5MB) <input name="schoolLetter" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+      <label>CV (PDF/JPG, max 5MB) <input name="cv" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+      <label>Ghana Card (PDF/JPG, max 5MB) <input name="ghanaCard" required type="file" accept=".pdf,.jpg,.jpeg,.png" /></label>
+      <progress id="upload-progress" value="0" max="100" hidden></progress>
+      <button type="submit">Submit</button>
+      <p id="form-status" role="status"></p>
+    </form>
+  </main>
+  <script type="module" src="js/student-form.js"></script>
+</body>
+</html>

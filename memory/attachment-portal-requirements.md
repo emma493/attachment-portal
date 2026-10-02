@@ -1,0 +1,115 @@
+# Attachment / Internship Submission Portal — Requirements & Preferences
+
+Last updated: 2026-10-02
+Status: Locked for v1 build
+
+## 1. Goal
+Students submit attachment/internship applications online (no paper travel).
+Flow: Student opens site -> fills form -> uploads letters, CV, ID -> submits
+-> Admin sees it in dashboard -> Approves / Rejects -> Student gets email.
+
+## 2. Hosting & Stack (locked)
+- Website: Netlify (static frontend: student form + /admin)
+- Rest: Firebase Spark free account (no card, no Blaze)
+- Database: Cloud Firestore (Spark free: 1GB stored, 50k reads/day, 20k writes/day)
+- Auth: Firebase Auth email/password (admin login only, students anonymous)
+- Files: Cloudinary free (NOT Firebase Storage — Storage buckets + Cloud Functions
+  + Trigger Email extension require Blaze since Feb 2026)
+- Emails: Brevo via Netlify Function (NOT Resend — Resend free is 100/day)
+
+## 3. Frontend Form (student view `/`)
+Fields:
+- Full Name (required, text)
+- School (required, text)
+- Course (required, text)
+- Phone (required, validate Ghana format)
+- Email (required, email format)
+- Company applying to: FREE-TEXT input typed manually by student.
+  No dropdown, no validation against list. min 2 / max 100 chars.
+  Stored as `company: string`. Admin searches/filters by fuzzy match.
+- Start Date / End Date (required, date, end > start)
+- Uploads (required, PDF/JPG/JPEG/PNG, 5MB max each, client-side validated):
+  1. Letter from school
+  2. CV
+  3. Ghana Card
+- Submit button with upload progress + success screen
+
+Submit flow:
+1. Validate client-side (required, email/phone, file type/size, end > start)
+2. Upload 3 files to Cloudinary unsigned preset -> get secure_urls
+3. Create Firestore doc `submissions/{autoId}` with metadata + file URLs
+   + `status: "pending"` + timestamps
+4. Enqueue receipt email via `mailQueue` -> Netlify Function -> Brevo
+
+## 4. Database (Firestore)
+Collection: `submissions`
+```
+{
+  fullName: string,
+  school: string,
+  course: string,
+  phone: string,
+  email: string,
+  company: string,          // manually typed
+  startDate: string (ISO),
+  endDate: string (ISO),
+  files: {
+    schoolLetterUrl: string,
+    cvUrl: string,
+    ghanaCardUrl: string
+  },
+  status: "pending" | "approved" | "rejected",
+  adminNote: string,
+  createdAt: timestamp,
+  updatedAt: timestamp
+}
+Collections for mail:
+- mailQueue/{id} { to, template, submissionId, status: queued/sent/failed, attempts }
+- mailLog/{id} { to, template, status, providerResponse, createdAt }
+```
+
+## 5. File Storage (Cloudinary free)
+- Unsigned upload preset, folder `submissions/`
+- Allowed formats: `pdf,jpg,jpeg,png`
+- App cap: 5MB per file (Cloudinary hard cap: 10MB raw)
+- Direct browser upload: POST https://api.cloudinary.com/v1_1/<CLOUD_NAME>/auto/upload
+- REQUIRED setting: Cloudinary Console > Settings > Security >
+  check `Allow delivery of PDF and ZIP files` (free accounts block PDFs by default)
+- Privacy (v1): URLs are long/un-guessable, no public listing.
+  Anyone WITH the URL can open it. Acceptable for v1.
+  v2 (if needed): signed/authenticated URLs via Netlify Function signer.
+  Note: Ghana Card is sensitive ID — do not expose URLs publicly.
+
+## 6. Emails (Brevo — locked)
+- Provider: Brevo free = 300 emails/day (~9,000/month), no card required
+- 1 submission = 2 emails (receipt + decision) => covers ~150 submissions/day
+- Sending path: Firestore `mailQueue` -> Netlify Function `send-email.js`
+  -> Brevo API (key in Netlify env, never in frontend) with retry + backoff
+  -> write result to `mailLog`
+- Templates: (a) "We received your form", (b) Approved, (c) Rejected (+ admin note)
+- Reliability: use custom sending domain (e.g. noreply@yourdomain.com)
+  + Brevo SPF/DKIM/DMARC from day 1. Gmail sender = spam-prone fallback only.
+- Swappable: `EMAIL_PROVIDER=brevo` env var. Future scale to SES ($0.10/1k)
+  or Brevo/Mailjet Starter ($9/mo, no daily cap) without rewrite.
+- Rejected: Gmail SMTP (500/day but spam-prone, blocks, no tracking).
+
+## 7. Admin Dashboard (`/admin`)
+- Firebase Auth email/password login (allowlist only)
+- List all submissions: filter pending/approved/rejected,
+  search name/school/company, sort by date
+- Detail view: all fields + View/Download buttons (Cloudinary URLs)
+- Actions: Approve / Reject + optional note -> updates `status`
+  -> enqueues decision email to student
+
+## 8. Security Rules (to implement)
+- Firestore: public can CREATE submission only (validated fields, status forced
+  to pending); only admin UID(s) can READ/LIST/UPDATE. No public list.
+- Cloudinary preset: locked to `submissions/` folder, file types + max size.
+  Treat preset name as sensitive.
+
+## 9. Open Items (need from user)
+- [ ] Firebase project exists or `firebase init` from scratch?
+- [ ] Brevo sender address + custom domain (or Gmail for now)?
+- [ ] Admin login email(s)?
+- [ ] Rough peak submissions/month (to confirm Brevo free is enough)?
+- [ ] Cloudinary account created + cloud name + unsigned preset name?

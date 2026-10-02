@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — Attachment Portal</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="container">
+    <h1>Admin Dashboard</h1>
+    <section id="login-section">
+      <h2>Login</h2>
+      <form id="login-form">
+        <label>Email <input name="email" type="email" required /></label>
+        <label>Password <input name="password" type="password" required /></label>
+        <button type="submit">Log in</button>
+      </form>
+    </section>
+    <section id="dashboard-section" hidden>
+      <div class="filters">
+        <select id="status-filter">
+          <option value="">All</option>
+          <option value="pending">Pending</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+        </select>
+        <input id="search" placeholder="Search name / school / company" />
+      </div>
+      <div id="submissions-list"></div>
+      <div id="submission-detail"></div>
+    </section>
+  </main>
+  <script type="module" src="js/admin.js"></script>
+</body>
+</html>
