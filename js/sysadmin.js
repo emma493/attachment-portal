@@ -324,7 +324,7 @@ function renderDetail(id) {
   );
 
   const noteLabel = document.createElement("label");
-  noteLabel.textContent = "Admin note (included in decision email)";
+  noteLabel.textContent = "Admin note";
   const note = document.createElement("textarea");
   note.id = "admin-note";
   note.rows = 3;
