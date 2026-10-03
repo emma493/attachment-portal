@@ -2,7 +2,7 @@ import { cloudinaryConfig, db, isConfigured } from "./firebase-config.js";
 import { collection, addDoc, doc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 // Flow: validate (via window.__wizard) -> upload 3 files to Cloudinary ->
-// addDoc(submissions) -> POST /.netlify/functions/send-email
+// addDoc(submissions) with daily-serial reference. No emails are sent.
 // Wizard paging/validation lives in js/wizard.js (classic script) so Continue
 // works even when this module fails to load (file://, blocked CDN).
 const form = document.getElementById("submission-form");
@@ -100,37 +100,8 @@ form?.addEventListener("submit", async (e) => {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
-    // Queue receipt email (best-effort — submission already saved)
-    await addDoc(collection(db, "mailQueue"), {
-      to: email,
-      template: "receipt",
-      submissionId: docRef.id,
-      status: "queued",
-      attempts: 0,
-      createdAt: serverTimestamp(),
-    }).catch(() => {});
-    // Receipt email: awaited (not fire-and-forget) so failures are visible
-    // instead of silently lost. Submission is already saved at this point.
-    let emailFailed = false;
-    try {
-      const mailRes = await fetch("/.netlify/functions/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: email,
-          subject: "We received your attachment application",
-          html: `<p>Hi ${fullName},</p><p>We received your application to <strong>${company}</strong>. Reference: <code>${reference}</code>. We will email you once reviewed.</p>`,
-          submissionId: docRef.id,
-        }),
-      });
-      if (!mailRes.ok) {
-        emailFailed = true;
-        console.error("Receipt email failed:", mailRes.status, await mailRes.text().catch(() => ""));
-      }
-    } catch (mailErr) {
-      emailFailed = true;
-      console.error("Receipt email failed:", mailErr);
-    }
+    // NOTE: receipt emails removed per owner request — no email is sent
+    // on submit. Submission is saved above; success panel follows.
 
     if (progress) progress.value = 100;
     if (w) w.clearAllPickers();
@@ -143,12 +114,6 @@ form?.addEventListener("submit", async (e) => {
     form.hidden = true;
     if (panel) {
       panel.hidden = false;
-      if (emailFailed) {
-        const warn = document.createElement("p");
-        warn.className = "field-error";
-        warn.textContent = "Application saved, but the confirmation email could not be sent. Save your reference number above — we will still review your application.";
-        panel.appendChild(warn);
-      }
       panel.scrollIntoView();
     }
   } catch (err) {
