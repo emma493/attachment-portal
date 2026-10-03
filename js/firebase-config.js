@@ -19,8 +19,8 @@ export const firebaseConfig = {
   projectId: envConfig.projectId || "attachment-portal-f4285",
   storageBucket: envConfig.storageBucket || "attachment-portal-f4285.firebasestorage.app",
   messagingSenderId: envConfig.messagingSenderId || "138039614207",
-  appId: envConfig.appId || "1:138039614207:web:706460a812036dfecc4aca",
-  measurementId: envConfig.measurementId || "G-83JN1W27BW",
+  appId: envConfig.appId || "1:138039614207:web:6121d3534e9fd87fcc4aca",
+  measurementId: envConfig.measurementId || "G-B59JCKWFHP",
 };
 export const cloudinaryConfig = {
   cloudName: envCloudinary.cloudName || "gpsslmw7",

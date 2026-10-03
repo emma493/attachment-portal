@@ -6,7 +6,9 @@ Status: Locked for v1 build
 ## 1. Goal
 Students submit attachment/internship applications online (no paper travel).
 Flow: Student opens site -> fills form -> uploads letters, CV, ID -> submits
--> Admin sees it in dashboard -> Approves / Rejects -> Student gets email.
+-> Admin sees it in dashboard -> Approves / Rejects.
+NOTE 2026-10-03: email sending removed per owner — no receipt or decision
+emails. Student email field is kept as contact info only.
 
 ## 2. Hosting & Stack (locked)
 - Website: Netlify (static frontend: student form + /sysadmin, no public link)
@@ -39,7 +41,7 @@ Submit flow:
 2. Upload 3 files to Cloudinary unsigned preset -> get secure_urls
 3. Create Firestore doc `submissions/{autoId}` with metadata + file URLs
    + `status: "pending"` + timestamps
-4. Enqueue receipt email via `mailQueue` -> Netlify Function -> Brevo
+4. Show reference number on success screen (no email sent — removed 2026-10-03)
 
 ## 4. Database (Firestore)
 Collection: `submissions`
@@ -64,9 +66,6 @@ Collection: `submissions`
   createdAt: timestamp,
   updatedAt: timestamp
 }
-Collections for mail:
-- mailQueue/{id} { to, template, submissionId, status: queued/sent/failed, attempts }
-- mailLog/{id} { to, template, status, providerResponse, createdAt }
 ```
 
 ## 5. File Storage (Cloudinary free)
@@ -81,18 +80,10 @@ Collections for mail:
   v2 (if needed): signed/authenticated URLs via Netlify Function signer.
   Note: Ghana Card is sensitive ID — do not expose URLs publicly.
 
-## 6. Emails (Brevo — locked)
-- Provider: Brevo free = 300 emails/day (~9,000/month), no card required
-- 1 submission = 2 emails (receipt + decision) => covers ~150 submissions/day
-- Sending path: Firestore `mailQueue` -> Netlify Function `send-email.js`
-  -> Brevo API (key in Netlify env, never in frontend) with retry + backoff
-  -> write result to `mailLog`
-- Templates: (a) "We received your form", (b) Approved, (c) Rejected (+ admin note)
-- Reliability: use custom sending domain (e.g. noreply@yourdomain.com)
-  + Brevo SPF/DKIM/DMARC from day 1. Gmail sender = spam-prone fallback only.
-- Swappable: `EMAIL_PROVIDER=brevo` env var. Future scale to SES ($0.10/1k)
-  or Brevo/Mailjet Starter ($9/mo, no daily cap) without rewrite.
-- Rejected: Gmail SMTP (500/day but spam-prone, blocks, no tracking).
+## 6. Emails (REMOVED 2026-10-03 per owner — no sending)
+- No receipt or decision emails. `mailQueue`/`mailLog` collections,
+  `netlify/functions/send-email.js`, and Brevo/Gmail env vars deleted.
+  Student `email` field remains as contact info only.
 
 ## 7. Admin Dashboard (`/sysadmin` — hidden, no public link)
 - Firebase Auth email/password login (allowlist only)
@@ -100,7 +91,7 @@ Collections for mail:
   search name/school/company, sort by date
 - Detail view: all fields + View/Download buttons (Cloudinary URLs)
 - Actions: Approve / Reject + optional note -> updates `status`
-  -> enqueues decision email to student
+  (no email sent — removed 2026-10-03)
 
 ## 8. Security Rules (to implement)
 - Firestore: public can CREATE submission only (validated fields, status forced
@@ -152,8 +143,6 @@ Collections for mail:
   untouched; file input names unchanged.
 
 ## 10. Open Items (need from user)
-- [ ] Firebase project exists or `firebase init` from scratch?
-- [ ] Brevo sender address + custom domain (or Gmail for now)?
+- [x] Firebase project exists (attachment-portal-f4285 wired 2026-10-03)
 - [ ] Admin login email(s)?
-- [ ] Rough peak submissions/month (to confirm Brevo free is enough)?
 - [ ] Cloudinary account created + cloud name + unsigned preset name?

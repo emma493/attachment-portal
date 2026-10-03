@@ -2,7 +2,7 @@ import { db, auth, isConfigured } from "./firebase-config.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import {
   collection, query, orderBy, getDocs,
-  doc, updateDoc, addDoc, writeBatch, serverTimestamp,
+  doc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 
 // SECURITY NOTE: this page allows anyone who finds /sysadmin to create a
@@ -26,7 +26,6 @@ const signupSubmit = document.getElementById("signup-submit");
 const adminUser = document.getElementById("admin-user");
 const signOutBtn = document.getElementById("signout-btn");
 const refreshBtn = document.getElementById("refresh-btn");
-const clearBtn = document.getElementById("clear-btn");
 const listEl = document.getElementById("submissions-list");
 const detailCard = document.getElementById("detail-card");
 const detailEl = document.getElementById("submission-detail");
@@ -364,48 +363,13 @@ async function decide(s, nextStatus, approveBtn, rejectBtn) {
     await updateDoc(doc(db, "submissions", s.id), {
       status: nextStatus, adminNote: note, updatedAt: serverTimestamp(),
     });
-    // Queue + trigger decision email (best-effort — status already saved)
-    await addDoc(collection(db, "mailQueue"), {
-      to: s.email, template: nextStatus, submissionId: s.id,
-      status: "queued", attempts: 0, createdAt: serverTimestamp(),
-    }).catch(() => {});
-    // Decision email: awaited so failures are visible (status already saved).
-    let emailFailed = false;
-    try {
-      const mailRes = await fetch("/.netlify/functions/send-email", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          to: s.email,
-          subject: nextStatus === "approved"
-            ? "Your attachment application was approved"
-            : "Update on your attachment application",
-          html: nextStatus === "approved"
-            ? `<p>Hi ${s.fullName},</p><p>Your application to <strong>${s.company}</strong> was <strong>approved</strong>.</p><p>${note}</p>`
-            : `<p>Hi ${s.fullName},</p><p>Your application to <strong>${s.company}</strong> was <strong>not approved</strong> at this time.</p><p>${note}</p>`,
-          submissionId: s.id,
-        }),
-      });
-      if (!mailRes.ok) {
-        emailFailed = true;
-        console.error("Decision email failed:", mailRes.status, await mailRes.text().catch(() => ""));
-      }
-    } catch (mailErr) {
-      emailFailed = true;
-      console.error("Decision email failed:", mailErr);
-    }
 
     s.status = nextStatus;
     s.adminNote = note;
     updateStats();
     renderList();
     renderDetail(s.id);
-    setStatus(
-      emailFailed
-        ? `Application ${nextStatus}, but the decision email failed to send.`
-        : `Application ${nextStatus}.`,
-      emailFailed ? "error" : "ok",
-    );
+    setStatus(`Application ${nextStatus}.`, "ok");
   } catch (err) {
     console.error(err);
     setStatus(`Save failed: ${err?.message || err}`, "error");
@@ -534,37 +498,6 @@ signOutBtn?.addEventListener("click", async () => {
 
 refreshBtn?.addEventListener("click", () => loadSubmissions());
 
-// TEMPORARY test-data cleanup: delete every loaded submission in batches.
-// Remove this handler + button + danger styles + the rules exception
-// before going live.
-clearBtn?.addEventListener("click", async () => {
-  if (!allDocs.length) { setStatus("Nothing to clear.", "error"); return; }
-  const n = allDocs.length;
-  if (!window.confirm(`Delete ALL ${n} submission${n === 1 ? "" : "s"}? This cannot be undone.`)) return;
-  if (!window.confirm("Really delete everything? Last chance.")) return;
-  clearBtn.disabled = true;
-  setStatus(`Deleting ${n}…`);
-  try {
-    for (let i = 0; i < allDocs.length; i += 450) {
-      const batch = writeBatch(db);
-      allDocs.slice(i, i + 450).forEach((s) => batch.delete(doc(db, "submissions", s.id)));
-      await batch.commit();
-    }
-    allDocs = [];
-    selectedId = null;
-    detailEl.innerHTML = "";
-    detailCard.hidden = true;
-    updateStats();
-    renderList();
-    setStatus(`Deleted ${n} submission${n === 1 ? "" : "s"}.`, "ok");
-  } catch (err) {
-    console.error(err);
-    setStatus(`Delete failed: ${err?.message || err}. If access was denied, publish the latest firestore.rules first, then retry.`, "error");
-    loadSubmissions().catch(() => {});
-  } finally {
-    clearBtn.disabled = false;
-  }
-});
 statusFilter?.addEventListener("change", renderList);
 searchInput?.addEventListener("input", renderList);
 

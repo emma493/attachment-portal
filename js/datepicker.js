@@ -147,7 +147,7 @@
       pop.style.position = "fixed";
       pop.style.left = "12px";
       pop.style.right = "12px";
-      pop.style.bottom = "12px";
+      pop.style.bottom = "calc(12px + env(safe-area-inset-bottom, 0px))";
       pop.style.top = "auto";
       pop.style.width = "auto";
       return;

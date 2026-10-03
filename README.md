@@ -6,7 +6,6 @@ Students submit online. Admin reviews and approves/rejects.
 - Frontend: static HTML/JS on **Netlify** (`index.html`, `sysadmin.html`)
 - Database + Auth: **Firebase Spark free** (Firestore + Auth)
 - Files: **Cloudinary free** unsigned upload (PDF/JPG/PNG, 5MB max)
-- Emails: **Brevo** (300/day free) via Netlify Function
 
 ## Connect to Netlify
 1. Push this folder to GitHub:
@@ -15,9 +14,8 @@ Students submit online. Admin reviews and approves/rejects.
 2. Netlify > Add new site > Import from GitHub > select repo.
    - Build command: (empty)
    - Publish directory: `.`
-   - Functions directory: `netlify/functions`
 3. Netlify > Site settings > Environment variables — copy from `.env.example`:
-   `VITE_FIREBASE_*`, `VITE_CLOUDINARY_*`, `BREVO_API_KEY`, `BREVO_SENDER_EMAIL`.
+   `VITE_FIREBASE_*`, `VITE_CLOUDINARY_*`.
 4. Deploy. Student form = `/`, admin = `/sysadmin` (no public link).
 
 ## Cloudinary setup (required for PDFs)
