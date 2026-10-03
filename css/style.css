@@ -220,6 +220,7 @@ img.fp-thumb { display: block; }
   left: auto; right: 0;
   grid-template-columns: repeat(3, 1fr);
   min-width: 172px;
+  max-width: calc(100vw - 4rem);
   max-height: 196px; overflow-y: auto;
 }
 .dp-dd-opt {
@@ -363,7 +364,26 @@ progress { width: 100%; accent-color: var(--navy); }
 .detail-row { display: grid; grid-template-columns: 140px 1fr; gap: 0.75rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); font-size: 0.95rem; }
 .detail-row dt { font-weight: 700; color: var(--navy); }
 .detail-row dd { margin: 0; overflow-wrap: anywhere; }
-.doc-links { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.docs-h { margin: 0.4rem 0 0; color: var(--navy); font-size: 1rem; }
+.doc-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.doc-item {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap;
+  border: 1px solid var(--line); border-radius: 6px; padding: 0.7rem 0.9rem; background: #fff;
+}
+.doc-name { display: grid; gap: 0.1rem; }
+.doc-name strong { color: var(--ink); }
+.doc-name small { color: var(--muted); font-size: 0.82rem; overflow-wrap: anywhere; }
+.doc-actions { display: flex; gap: 0.5rem; }
+.doc-btn {
+  font-family: inherit; font-weight: 700; font-size: 0.88rem; text-decoration: none;
+  border-radius: 4px; padding: 8px 18px; cursor: pointer; min-height: 44px;
+  display: inline-flex; align-items: center;
+}
+.doc-view { background: var(--navy); color: #fff; }
+.doc-view:hover { background: var(--navy-dark); }
+.doc-dl { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
+.doc-dl:hover { background: var(--bg); }
+.doc-dl:disabled { opacity: 0.6; cursor: wait; }
 #login-error, #signup-error { margin: 0; }
 .auth-tabs { display: flex; gap: 0.5rem; }
 .auth-tabs button {
@@ -458,6 +478,13 @@ textarea {
   .wizard-nav .ghost, .wizard-nav .cta { min-height: 48px; }
   .wizard-nav .ghost { padding: 12px 20px; }
   .review div { grid-template-columns: 1fr; gap: 0.1rem; }
+  /* Datepicker sheet: clear the home indicator, scroll if short, 44px days */
+  .dp-pop { padding-bottom: calc(0.9rem + env(safe-area-inset-bottom, 0px)); max-height: calc(100dvh - 24px); overflow-y: auto; }
+  .dp-day { min-height: 44px; }
+  /* File picker: let preview + actions stack instead of squeezing */
+  .fp-preview { flex-wrap: wrap; }
+  .fp-actions { width: 100%; }
+  .fp-actions a, .fp-actions button { flex: 1; justify-content: center; }
   .footer-grid { grid-template-columns: 1fr; }
   .filters { grid-template-columns: 1fr; }
   .stats { grid-template-columns: repeat(2, 1fr); }

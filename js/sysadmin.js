@@ -197,20 +197,81 @@ function renderList() {
   }
 }
 
-function fileLink(label, url) {
-  const safe = safeUrl(url);
-  if (!safe) {
-    const span = document.createElement("span");
-    span.className = "hint";
-    span.textContent = `${label} (missing)`;
-    return span;
+function fileNameFromUrl(url) {
+  try {
+    const name = new URL(url).pathname.split("/").pop() || "";
+    return decodeURIComponent(name) || "document";
+  } catch {
+    return "document";
   }
-  const a = document.createElement("a");
-  a.href = safe;
-  a.target = "_blank";
-  a.rel = "noopener";
-  a.textContent = label;
-  return a;
+}
+
+// Cross-origin `download` attributes are ignored by browsers, so Download
+// fetches the file and saves it locally. Falls back to a new tab on failure.
+async function downloadFile(url, filename, btn) {
+  const safe = safeUrl(url);
+  if (!safe) return;
+  const original = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = "Preparing…";
+  try {
+    const res = await fetch(safe, { mode: "cors" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const blob = await res.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objUrl), 5000);
+  } catch (err) {
+    console.warn("Direct download failed, opening in new tab:", err?.message);
+    window.open(safe, "_blank", "noopener");
+    setStatus("Could not download directly — opened in a new tab instead.", "error");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = original;
+  }
+}
+
+function docItem(label, url) {
+  const li = document.createElement("li");
+  li.className = "doc-item";
+  const name = document.createElement("div");
+  name.className = "doc-name";
+  const strong = document.createElement("strong");
+  strong.textContent = label;
+  name.appendChild(strong);
+  const sub = document.createElement("small");
+  const safe = safeUrl(url);
+  if (safe) {
+    sub.textContent = fileNameFromUrl(safe);
+  } else {
+    sub.className = "hint";
+    sub.textContent = "Missing";
+  }
+  name.appendChild(sub);
+  li.appendChild(name);
+  if (safe) {
+    const actions = document.createElement("div");
+    actions.className = "doc-actions";
+    const view = document.createElement("a");
+    view.className = "doc-btn doc-view";
+    view.href = safe;
+    view.target = "_blank";
+    view.rel = "noopener";
+    view.textContent = "View";
+    const down = document.createElement("button");
+    down.type = "button";
+    down.className = "doc-btn doc-dl";
+    down.textContent = "Download";
+    down.addEventListener("click", () => downloadFile(safe, fileNameFromUrl(safe), down));
+    actions.append(view, down);
+    li.appendChild(actions);
+  }
+  return li;
 }
 
 function detailRow(label, value) {
@@ -251,14 +312,15 @@ function renderDetail(id) {
     detailRow("Status", s.status || "pending"),
   );
 
-  const filesP = document.createElement("p");
-  filesP.className = "doc-links";
-  filesP.append(
-    fileLink("School letter", s.files?.schoolLetterUrl),
-    document.createTextNode(" · "),
-    fileLink("CV", s.files?.cvUrl),
-    document.createTextNode(" · "),
-    fileLink("Ghana Card", s.files?.ghanaCardUrl),
+  const filesTitle = document.createElement("h4");
+  filesTitle.className = "docs-h";
+  filesTitle.textContent = "Documents";
+  const filesList = document.createElement("ul");
+  filesList.className = "doc-list";
+  filesList.append(
+    docItem("School letter", s.files?.schoolLetterUrl),
+    docItem("CV", s.files?.cvUrl),
+    docItem("Ghana Card", s.files?.ghanaCardUrl),
   );
 
   const noteLabel = document.createElement("label");
@@ -281,7 +343,7 @@ function renderDetail(id) {
   rejectBtn.textContent = "Reject";
   actions.append(approveBtn, rejectBtn);
 
-  detailEl.append(h, ref, dl, filesP, noteLabel, actions);
+  detailEl.append(h, ref, dl, filesTitle, filesList, noteLabel, actions);
 
   approveBtn.addEventListener("click", () => decide(s, "approved", approveBtn, rejectBtn));
   rejectBtn.addEventListener("click", () => {
