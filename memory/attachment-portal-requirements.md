@@ -50,7 +50,7 @@ Collection: `submissions`
   course: string,
   phone: string,
   email: string,
-  reference: string,        // digits from submit date+time (YYYYMMDDHHMMSSmmm), shown to student
+  reference: string,        // daily serial YYYY-MM-DD-NNN (fallback: YYYY-MM-DD-HHMMSS), shown to student
   company: string,          // manually typed
   startDate: string (ISO),
   endDate: string (ISO),

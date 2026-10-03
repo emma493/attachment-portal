@@ -1,5 +1,5 @@
 import { cloudinaryConfig, db, isConfigured } from "./firebase-config.js";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, doc, runTransaction, serverTimestamp } from "firebase/firestore";
 
 // Flow: validate (via window.__wizard) -> upload 3 files to Cloudinary ->
 // addDoc(submissions) -> POST /.netlify/functions/send-email
@@ -25,12 +25,25 @@ function wizard() {
   return window.__wizard || null;
 }
 
-// Human-readable reference: digits only, built from local date + time
-// (YYYYMMDDHHMMSSmmm). Milliseconds keep same-second submissions unique.
-function makeReference(now = new Date()) {
-  const p = (n, len = 2) => String(n).padStart(len, "0");
-  return `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}` +
-    `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}${p(now.getMilliseconds(), 3)}`;
+// Human-readable reference like 2026-10-03-001: daily serial from a
+// Firestore counter (resets each day). Falls back to a timestamp ref if the
+// counter rules aren't deployed yet, so submitting never breaks.
+async function makeReference(now = new Date()) {
+  const p = (n) => String(n).padStart(2, "0");
+  const day = `${now.getFullYear()}-${p(now.getMonth() + 1)}-${p(now.getDate())}`;
+  try {
+    const seq = await runTransaction(db, async (tx) => {
+      const counterRef = doc(db, "refCounters", day);
+      const snap = await tx.get(counterRef);
+      const next = (snap.exists() ? (snap.data().n || 0) : 0) + 1;
+      tx.set(counterRef, { n: next });
+      return next;
+    });
+    return `${day}-${String(seq).padStart(3, "0")}`;
+  } catch (err) {
+    console.warn("Counter unavailable, using timestamp reference:", err?.message);
+    return `${day}-${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}`;
+  }
 }
 
 window.__submitReady = true;
@@ -77,7 +90,7 @@ form?.addEventListener("submit", async (e) => {
     if (progress) progress.value = 70;
     status.textContent = "Saving application…";
 
-    const reference = makeReference();
+    const reference = await makeReference();
     const docRef = await addDoc(collection(db, "submissions"), {
       fullName, school, course, phone, email, company, startDate, endDate,
       reference,

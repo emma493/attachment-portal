@@ -10,6 +10,18 @@ service cloud.firestore {
       allow read, update: if request.auth != null;
       allow delete: if false;
     }
+    // Daily reference counters: anyone may read a day's number and bump it
+    // by exactly 1 (first creation starts at 1). No listing, no other writes.
+    match /refCounters/{day} {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.resource.data.keys().hasOnly(['n'])
+        && request.resource.data.n == 1;
+      allow update: if request.resource.data.keys().hasOnly(['n'])
+        && request.resource.data.n is int
+        && request.resource.data.n == resource.data.n + 1;
+      allow delete: if false;
+    }
     match /mailQueue/{id} {
       allow create: if true;
       allow read, update: if request.auth != null;
