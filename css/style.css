@@ -381,6 +381,11 @@ progress { width: 100%; accent-color: var(--navy); }
 }
 .doc-view { background: var(--navy); color: #fff; }
 .doc-view:hover { background: var(--navy-dark); }
+/* Must outrank #submission-detail a (ID beats plain class) or the white
+   label loses to navy-on-navy. Covers unvisited/visited/hover. */
+#submission-detail a.doc-view,
+#submission-detail a.doc-view:visited { color: #fff; }
+#submission-detail a.doc-view:hover { color: #fff; background: var(--navy-dark); }
 .doc-dl { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
 .doc-dl:hover { background: var(--bg); }
 .doc-dl:disabled { opacity: 0.6; cursor: wait; }
