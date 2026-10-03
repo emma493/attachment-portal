@@ -146,3 +146,18 @@ Collection: `submissions`
 - [x] Firebase project exists (attachment-portal-f4285 wired 2026-10-03)
 - [ ] Admin login email(s)?
 - [ ] Cloudinary account created + cloud name + unsigned preset name?
+
+## 11. Admin auth v2 (2026-10-03 — single admin + mandatory TOTP 2FA + side menu)
+- Exactly ONE staff account. `config/setup { setupDone, adminUid }` is publicly
+  readable (boolean only); page shows sign-up ONCE, then sign-in only.
+  `firestore.rules` must be deployed from the repo: submissions read/update
+  restricted to `admins/{uid}` owner; second UIDs can never become admin.
+- 2FA required at every login via Firebase Auth TOTP MFA
+  (`TotpMultiFactorGenerator`); enroll shows QR (cdnjs qrcodejs, manual-key
+  fallback) + 6-digit verify. No self-service reset — locked-out recovery is
+  Firebase Console → Authentication → user → remove second factor.
+- Dashboard is a side-menu shell (`sysadmin.html`): Overview (stats + oldest
+  pending), Submissions (filters/list/detail, approve/reject unchanged),
+  Security (2FA status, password change, stray-account guidance).
+- If stray email/password users exist in Auth, delete them in console — they
+  are signed straight back out and cannot read anything.

@@ -1,15 +1,51 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
     // Students: create-only, must force status == pending
     match /submissions/{id} {
       allow create: if request.resource.data.status == 'pending'
         && request.resource.data.fullName is string
         && request.resource.data.email is string;
-      // Only signed-in admins read/update (restrict further via custom claims or UID check)
-      allow read, update: if request.auth != null;
+      // Only the enrolled staff admin can read/update.
+      allow read, update: if isAdmin();
       allow delete: if false;
     }
+
+    // Single-admin registry. Each user may only create/read their own doc.
+    // A second UID can never become admin because setup (below) only allows
+    // the first claim; rules additionally require the setup doc to be
+    // unclaimed OR owned by the caller.
+    match /admins/{uid} {
+      allow get: if request.auth != null && request.auth.uid == uid;
+      allow list: if false;
+      allow create: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.email is string
+        && (!exists(/databases/$(database)/documents/config/setup)
+          || get(/databases/$(database)/documents/config/setup).data.adminUid == uid);
+      allow update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.email is string;
+      allow delete: if false;
+    }
+
+    // One-time setup flag. Publicly readable (boolean only) so the login
+    // page can decide: show sign-up once, then sign-in only.
+    match /config/setup {
+      allow get: if true;
+      allow list: if false;
+      allow create: if request.auth != null
+        && request.resource.data.keys().hasOnly(['setupDone', 'adminUid', 'adminEmail', 'createdAt'])
+        && request.resource.data.setupDone == true
+        && request.resource.data.adminUid == request.auth.uid;
+      allow update: if false;
+      allow delete: if false;
+    }
+
     // Daily reference counters: anyone may read a day's number and bump it
     // by exactly 1 (first creation starts at 1). No listing, no other writes.
     match /refCounters/{day} {

@@ -42,25 +42,26 @@
 (function () {
   var tabLogin = document.getElementById("tab-login");
   var tabSignup = document.getElementById("tab-signup");
-  if (!tabLogin || !tabSignup) return;
   var loginForm = document.getElementById("login-form");
   var signupForm = document.getElementById("signup-form");
 
-  function show(which) {
-    var login = which !== "signup";
-    if (loginForm) loginForm.hidden = !login;
-    if (signupForm) signupForm.hidden = login;
-    tabLogin.classList.toggle("active", login);
-    tabSignup.classList.toggle("active", !login);
-    tabLogin.setAttribute("aria-selected", String(login));
-    tabSignup.setAttribute("aria-selected", String(!login));
-  }
-  if (!window.__adminTab) window.__adminTab = show;
+  if (tabLogin && tabSignup) {
+    const show = function (which) {
+      var login = which !== "signup";
+      if (loginForm) loginForm.hidden = !login;
+      if (signupForm) signupForm.hidden = login;
+      tabLogin.classList.toggle("active", login);
+      tabSignup.classList.toggle("active", !login);
+      tabLogin.setAttribute("aria-selected", String(login));
+      tabSignup.setAttribute("aria-selected", String(!login));
+    };
+    if (!window.__adminTab) window.__adminTab = show;
 
-  if (!window.__adminTabsWired) {
-    window.__adminTabsWired = true;
-    tabLogin.addEventListener("click", function () { show("login"); });
-    tabSignup.addEventListener("click", function () { show("signup"); });
+    if (!window.__adminTabsWired) {
+      window.__adminTabsWired = true;
+      tabLogin.addEventListener("click", function () { show("login"); });
+      tabSignup.addEventListener("click", function () { show("signup"); });
+    }
   }
 
   // Fallback: if the Firebase module never boots, stop the forms from
@@ -85,5 +86,5 @@
       var note = document.getElementById("auth-offline-note");
       if (note) note.hidden = false;
     }
-  }, 5000);
+  }, 8000);
 })();

@@ -1,32 +1,60 @@
 import { db, auth, isConfigured } from "./firebase-config.js";
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut,
+  updatePassword,
+  multiFactor,
+  TotpMultiFactorGenerator,
+  getMultiFactorResolver,
+} from "firebase/auth";
 import {
   collection, query, orderBy, getDocs,
-  doc, updateDoc, serverTimestamp,
+  doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 
-// SECURITY NOTE: this page allows anyone who finds /sysadmin to create a
-// staff account, and any signed-in user can read submissions (see
-// firestore.rules). After creating YOUR account, disable sign-up by setting
-// ALLOW_STAFF_SIGNUP = false below and redeploying. For stronger protection,
-// restrict firestore.rules to your UID(s) afterwards.
+// Single-admin model: exactly one staff account exists. The page shows the
+// sign-up form ONCE (while config/setup is unclaimed); afterwards only the
+// login form is ever shown. A second UID can never read submissions —
+// firestore.rules restricts submissions read/update to admins/{uid} owners
+// and only the first UID can claim config/setup.
+// Two-step verification (Google Authenticator) is MANDATORY via Firebase
+// Auth TOTP multi-factor: no dashboard without an enrolled TOTP factor.
 
-const ALLOW_STAFF_SIGNUP = true;
+const SETUP_REF = () => doc(db, "config", "setup");
+const adminDocRef = (uid) => doc(db, "admins", uid);
 
+const authH = document.getElementById("auth-h");
+const authSub = document.getElementById("auth-sub");
+const loginSection = document.getElementById("login-section");
 const loginForm = document.getElementById("login-form");
 const signupForm = document.getElementById("signup-form");
-const tabLogin = document.getElementById("tab-login");
-const tabSignup = document.getElementById("tab-signup");
-const loginSection = document.getElementById("login-section");
-const dashSection = document.getElementById("dashboard-section");
 const loginError = document.getElementById("login-error");
 const loginSubmit = document.getElementById("login-submit");
 const signupError = document.getElementById("signup-error");
 const signupSubmit = document.getElementById("signup-submit");
+const enrollSection = document.getElementById("mfa-enroll-section");
+const enrollForm = document.getElementById("enroll-form");
+const enrollError = document.getElementById("enroll-error");
+const enrollSubmit = document.getElementById("enroll-submit");
+const qrBox = document.getElementById("qr-box");
+const totpKeyEl = document.getElementById("totp-key");
+const copyKeyBtn = document.getElementById("copy-key");
+const verifySection = document.getElementById("mfa-verify-section");
+const verifyForm = document.getElementById("verify-form");
+const verifyError = document.getElementById("verify-error");
+const verifySubmit = document.getElementById("verify-submit");
+const verifyBack = document.getElementById("verify-back");
+const dashSection = document.getElementById("dashboard-section");
 const adminUser = document.getElementById("admin-user");
+const sideUser = document.getElementById("side-user");
+const mfaBadge = document.getElementById("mfa-badge");
 const signOutBtn = document.getElementById("signout-btn");
 const refreshBtn = document.getElementById("refresh-btn");
 const listEl = document.getElementById("submissions-list");
+const attentionList = document.getElementById("attention-list");
+const attentionHint = document.getElementById("attention-hint");
 const detailCard = document.getElementById("detail-card");
 const detailEl = document.getElementById("submission-detail");
 const statusFilter = document.getElementById("status-filter");
@@ -37,10 +65,30 @@ const statTotal = document.getElementById("stat-total");
 const statPending = document.getElementById("stat-pending");
 const statApproved = document.getElementById("stat-approved");
 const statRejected = document.getElementById("stat-rejected");
+const viewTitle = document.getElementById("view-title");
+const secEmail = document.getElementById("sec-email");
+const sec2fa = document.getElementById("sec-2fa");
+const liveLine = document.getElementById("live-line");
+const adminShell = document.getElementById("admin-shell");
+const railToggle = document.getElementById("rail-toggle");
+const signOutBtnM = document.getElementById("signout-btn-m");
+const passwordForm = document.getElementById("password-form");
+const passwordError = document.getElementById("password-error");
+const passwordOk = document.getElementById("password-ok");
+const passwordSubmit = document.getElementById("password-submit");
 
 let allDocs = [];
 let selectedId = null;
 let loading = false;
+let setupDone = null; // null = unknown yet
+let pendingSecret = null;
+let pendingResolver = null;
+let currentView = "overview";
+let authReady = false;
+
+const VIEW_TITLES = { overview: "Overview", submissions: "Submissions", security: "Security" };
+
+// ---------- small helpers ----------
 
 function setStatus(msg, kind = "") {
   if (!adminStatus) return;
@@ -48,10 +96,32 @@ function setStatus(msg, kind = "") {
   adminStatus.className = kind;
 }
 
-function showLoginError(msg) {
-  if (!loginError) return;
-  loginError.textContent = msg;
-  loginError.hidden = !msg;
+function showFieldError(el, msg) {
+  if (!el) return;
+  el.textContent = msg || "";
+  el.hidden = !msg;
+}
+
+function hideAll() {
+  loginSection.hidden = true;
+  enrollSection.hidden = true;
+  verifySection.hidden = true;
+  dashSection.hidden = true;
+}
+
+function showAuth(mode) {
+  // mode: "login" | "signup" — exactly one is ever visible.
+  hideAll();
+  loginSection.hidden = false;
+  const signup = mode === "signup";
+  signupForm.hidden = !signup;
+  loginForm.hidden = signup;
+  if (authH) authH.textContent = signup ? "Create the staff account" : "Staff sign in";
+  if (authSub) authSub.textContent = signup
+    ? "This is shown once. After this account exists, only Sign in is shown."
+    : "Sign in with the staff account, then enter your Authenticator code.";
+  if (viewTitle) viewTitle.textContent = signup ? "Staff setup" : "Staff access";
+  setMenuEnabled(false);
 }
 
 // Only allow safe https links (Cloudinary secure_urls). Blocks javascript:/data:.
@@ -82,19 +152,506 @@ function fmtDate(s) {
   return "—";
 }
 
+// ---------- side menu / views ----------
+
+function setMenuEnabled(on) {
+  document.querySelectorAll("button[data-view]").forEach((b) => {
+    b.disabled = !on;
+  });
+  if (signOutBtn) signOutBtn.hidden = !on;
+  if (signOutBtnM) signOutBtnM.hidden = !on;
+}
+
+function showView(name) {
+  if (!VIEW_TITLES[name]) name = "overview";
+  currentView = name;
+  document.querySelectorAll("button[data-view]").forEach((b) => {
+    const active = b.dataset.view === name;
+    if (active) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+  document.querySelectorAll(".admin-view[data-view]").forEach((v) => {
+    v.hidden = v.dataset.view !== name;
+  });
+  if (viewTitle && !dashSection.hidden) viewTitle.textContent = VIEW_TITLES[name];
+  try {
+    const h = "#/" + name;
+    if (location.hash !== h) history.replaceState(null, "", h);
+  } catch { /* ignore */ }
+}
+
+document.querySelectorAll("button[data-view]").forEach((b) => {
+  b.addEventListener("click", () => {
+    if (dashSection.hidden) return; // menu is inert until signed in
+    showView(b.dataset.view);
+  });
+});
+
+// Collapsible rail (desktop) — persisted per browser.
+const RAIL_KEY = "dvla-rail-collapsed";
+function applyRail(collapsed) {
+  adminShell?.classList.toggle("rail-collapsed", !!collapsed);
+  railToggle?.setAttribute("aria-expanded", String(!collapsed));
+  railToggle?.setAttribute("aria-label", collapsed ? "Expand menu" : "Collapse menu");
+  railToggle?.setAttribute("title", collapsed ? "Expand menu" : "Collapse menu");
+}
+try {
+  applyRail(localStorage.getItem(RAIL_KEY) === "1");
+} catch { /* private mode */ }
+railToggle?.addEventListener("click", () => {
+  const collapsed = !adminShell?.classList.contains("rail-collapsed");
+  applyRail(collapsed);
+  try { localStorage.setItem(RAIL_KEY, collapsed ? "1" : "0"); } catch { /* ignore */ }
+});
+
+// ---------- setup gate (signup once, then login only) ----------
+
+async function readSetup() {
+  try {
+    const snap = await getDoc(SETUP_REF());
+    if (snap.exists() && snap.data()?.setupDone === true) return { done: true, data: snap.data() };
+    return { done: false, data: null };
+  } catch (err) {
+    console.warn("Setup read failed:", err?.message);
+    return null; // offline / misconfigured — caller shows login + offline note
+  }
+}
+
+function hideOfflineNote() {
+  const note = document.getElementById("auth-offline-note");
+  if (note) note.hidden = true;
+}
+
+async function initAuthView() {
+  if (!isConfigured || !auth || !db) {
+    showAuth("login");
+    showFieldError(loginError, "Portal not connected — missing Firebase config.");
+    const note = document.getElementById("auth-offline-note");
+    if (note) note.hidden = false;
+    return;
+  }
+  const setup = await readSetup();
+  if (setup === null) {
+    showAuth("login");
+    const note = document.getElementById("auth-offline-note");
+    if (note) note.hidden = false;
+    return;
+  }
+  setupDone = setup.done;
+  hideOfflineNote(); // module booted + Firestore reachable — cancel the slow-network false alarm
+  showAuth(setup.done ? "login" : "signup");
+}
+
+// ---------- admin claim + dashboard ----------
+
+async function ensureAdminDoc(user, totpEnabled) {
+  try {
+    await setDoc(adminDocRef(user.uid), {
+      email: user.email || "",
+      totpEnabled: !!totpEnabled,
+      createdAt: serverTimestamp(),
+    }, { merge: true });
+  } catch (err) {
+    console.warn("Admin doc write failed:", err?.message);
+    throw err;
+  }
+}
+
+async function claimSetupIfFirst(user) {
+  // Called for a signed-in user when no setup doc exists: this user IS the
+  // single admin. Order matters for the rules: admins/{uid} first (allowed
+  // while setup is unclaimed), then config/setup.
+  const setup = await readSetup();
+  if (setup && setup.done) return setup.data;
+  await ensureAdminDoc(user, true);
+  try {
+    await setDoc(SETUP_REF(), {
+      setupDone: true,
+      adminUid: user.uid,
+      adminEmail: user.email || "",
+      createdAt: serverTimestamp(),
+    });
+  } catch (err) {
+    console.warn("Setup claim failed:", err?.message);
+    throw err;
+  }
+  setupDone = true;
+  return (await readSetup())?.data || null;
+}
+
+async function isOurAdmin(user) {
+  const setup = await readSetup();
+  if (!setup || !setup.done) return { first: true };
+  if (setup.data?.adminUid === user.uid) return { first: false, ok: true };
+  return { first: false, ok: false };
+}
+
 function showDashboard(user) {
-  loginSection.hidden = true;
+  hideAll();
   dashSection.hidden = false;
+  document.body.classList.add("authed");
   if (adminUser) adminUser.textContent = user?.email ? `Signed in as ${user.email}` : "";
+  if (sideUser) sideUser.textContent = user?.email || "Signed in";
+  if (mfaBadge) mfaBadge.hidden = false;
+  if (liveLine) liveLine.hidden = false;
+  if (secEmail) secEmail.textContent = user?.email || "—";
+  if (sec2fa) sec2fa.textContent = "On — Google Authenticator (required at every sign in)";
+  setMenuEnabled(true);
+  const hashView = (location.hash || "").replace("#/", "");
+  showView(VIEW_TITLES[hashView] ? hashView : currentView);
   loadSubmissions();
 }
 
 function showLogin() {
-  dashSection.hidden = true;
-  loginSection.hidden = false;
+  setMenuEnabled(false);
+  document.body.classList.remove("authed");
+  if (mfaBadge) mfaBadge.hidden = true;
+  if (liveLine) liveLine.hidden = true;
   allDocs = [];
   selectedId = null;
+  pendingSecret = null;
+  pendingResolver = null;
+  showAuth(setupDone ? "login" : "signup");
 }
+
+async function rejectStray(user) {
+  try { await signOut(auth); } catch { /* ignore */ }
+  showLogin();
+  showFieldError(loginError, "This is not the staff account. Only the one enrolled staff account can access this dashboard.");
+}
+
+// ---------- TOTP enrollment (mandatory) ----------
+
+function renderQr(url) {
+  if (!qrBox) return;
+  qrBox.innerHTML = "";
+  try {
+    if (window.QRCode) {
+      // qrcodejs (cdnjs) UMD global
+      new window.QRCode(qrBox, { text: url, width: 180, height: 180 });
+      return;
+    }
+  } catch (err) {
+    console.warn("QR render failed, manual key remains:", err?.message);
+  }
+  const p = document.createElement("p");
+  p.className = "hint";
+  p.textContent = "QR unavailable — enter the key above manually in Authenticator.";
+  qrBox.appendChild(p);
+}
+
+async function startEnrollment(user) {
+  hideAll();
+  enrollSection.hidden = false;
+  if (viewTitle) viewTitle.textContent = "Two-step setup";
+  setMenuEnabled(false);
+  showFieldError(enrollError, "");
+  if (!pendingSecret) {
+    try {
+      const session = await multiFactor(user).getSession();
+      pendingSecret = await TotpMultiFactorGenerator.generateSecret(session);
+    } catch (err) {
+      console.error(err);
+      showFieldError(enrollError, "Could not start authenticator setup. Check your connection and try again.");
+      return;
+    }
+  }
+  const url = pendingSecret.generateQrCodeUrl(user.email || "DVLA admin", "DVLA Ghana");
+  if (totpKeyEl) totpKeyEl.textContent = pendingSecret.secretKey || "";
+  renderQr(url);
+  document.getElementById("enroll-code")?.focus();
+}
+
+copyKeyBtn?.addEventListener("click", () => {
+  const txt = totpKeyEl?.textContent || "";
+  const done = () => {
+    copyKeyBtn.textContent = "Copied!";
+    setTimeout(() => { copyKeyBtn.textContent = "Copy"; }, 2000);
+  };
+  if (navigator.clipboard && txt) navigator.clipboard.writeText(txt).then(done, done);
+  else done();
+});
+
+enrollForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showFieldError(enrollError, "");
+  const user = auth?.currentUser;
+  const code = (new FormData(enrollForm).get("code") || "").toString().trim().replace(/\s/g, "");
+  if (!user || !pendingSecret) {
+    showFieldError(enrollError, "Session expired — sign in again.");
+    return;
+  }
+  if (!/^\d{6}$/.test(code)) {
+    showFieldError(enrollError, "Enter the 6-digit code from Authenticator.");
+    return;
+  }
+  enrollSubmit.disabled = true;
+  enrollSubmit.textContent = "Verifying…";
+  try {
+    const assertion = TotpMultiFactorGenerator.assertionForEnrollment(pendingSecret, code);
+    await multiFactor(user).enroll(assertion, "Google Authenticator");
+    pendingSecret = null;
+    await ensureAdminDoc(user, true);
+    await claimSetupIfFirst(user);
+    showDashboard(user);
+  } catch (err) {
+    console.error(err);
+    const c = err?.code || "";
+    if (c.includes("invalid-verification-code") || /invalid|mismatch|incorrect/i.test(err?.message || "")) {
+      showFieldError(enrollError, "That code didn't work — check the time on your phone and try the current code.");
+    } else {
+      showFieldError(enrollError, err?.message || "Verification failed. Try again.");
+    }
+  } finally {
+    enrollSubmit.disabled = false;
+    enrollSubmit.textContent = "Verify & finish setup";
+  }
+});
+
+// ---------- login + MFA challenge ----------
+
+function friendlyAuthError(err) {
+  const code = err?.code || "";
+  if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
+    return "Wrong email or password.";
+  }
+  if (code.includes("too-many-requests")) return "Too many attempts — try again later.";
+  if (code.includes("network")) return "Network error — check your connection and try again.";
+  return err?.message || "Login failed.";
+}
+
+loginForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showFieldError(loginError, "");
+  if (!isConfigured || !auth || !db) {
+    showFieldError(loginError, "Portal not connected — missing Firebase config.");
+    return;
+  }
+  const fd = new FormData(loginForm);
+  const email = (fd.get("email") || "").toString().trim();
+  const password = (fd.get("password") || "").toString();
+  if (!email || !password) {
+    showFieldError(loginError, "Enter your email and password.");
+    return;
+  }
+  loginSubmit.disabled = true;
+  loginSubmit.textContent = "Signing in…";
+  try {
+    await signInWithEmailAndPassword(auth, email, password);
+    // Success without MFA challenge → onAuthStateChanged routes onward.
+  } catch (err) {
+    if (err?.code === "auth/multi-factor-auth-required") {
+      try {
+        pendingResolver = getMultiFactorResolver(auth, err);
+        hideAll();
+        verifySection.hidden = false;
+        if (viewTitle) viewTitle.textContent = "Two-step verification";
+        document.getElementById("verify-code")?.focus();
+      } catch (rErr) {
+        showFieldError(loginError, friendlyAuthError(rErr));
+      }
+    } else {
+      showFieldError(loginError, friendlyAuthError(err));
+    }
+  } finally {
+    loginSubmit.disabled = false;
+    loginSubmit.textContent = "Log in";
+  }
+});
+
+verifyForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showFieldError(verifyError, "");
+  const code = (new FormData(verifyForm).get("code") || "").toString().trim().replace(/\s/g, "");
+  if (!pendingResolver) {
+    showFieldError(verifyError, "Session expired — sign in again.");
+    return;
+  }
+  if (!/^\d{6}$/.test(code)) {
+    showFieldError(verifyError, "Enter the 6-digit code from Authenticator.");
+    return;
+  }
+  const hint = (pendingResolver.hints || []).find(
+    (h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
+  ) || pendingResolver.hints[0];
+  if (!hint) {
+    showFieldError(verifyError, "No authenticator is enrolled on this sign-in. Use the enrolled device.");
+    return;
+  }
+  verifySubmit.disabled = true;
+  verifySubmit.textContent = "Verifying…";
+  try {
+    const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
+    await pendingResolver.resolveSignIn(assertion);
+    pendingResolver = null;
+    // onAuthStateChanged routes to the dashboard.
+  } catch (err) {
+    console.error(err);
+    showFieldError(verifyError, "That code didn't work — try the current code from Authenticator.");
+  } finally {
+    verifySubmit.disabled = false;
+    verifySubmit.textContent = "Verify & open dashboard";
+  }
+});
+
+verifyBack?.addEventListener("click", async () => {
+  pendingResolver = null;
+  try { await signOut(auth); } catch { /* ignore */ }
+  showLogin();
+});
+
+// ---------- first-run signup (shown once, ever) ----------
+
+function showSignupError(msg) {
+  showFieldError(signupError, msg);
+}
+
+signupForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showSignupError("");
+  if (setupDone) {
+    showSignupError("Staff sign-up is closed — this portal allows exactly one staff account. Use Sign in.");
+    return;
+  }
+  if (!isConfigured || !auth || !db) {
+    showSignupError("Portal not connected — missing Firebase config.");
+    return;
+  }
+  // Re-check server state: a second browser may have claimed setup already.
+  const setup = await readSetup();
+  if (setup && setup.done) {
+    setupDone = true;
+    showAuth("login");
+    showSignupError("");
+    showFieldError(loginError, "The staff account already exists — sign in instead.");
+    return;
+  }
+  const fd = new FormData(signupForm);
+  const email = (fd.get("email") || "").toString().trim();
+  const password = (fd.get("password") || "").toString();
+  const confirm = (fd.get("confirm") || "").toString();
+  if (!email || !password) {
+    showSignupError("Enter an email and password.");
+    return;
+  }
+  if (password.length < 6) {
+    showSignupError("Password must be at least 6 characters.");
+    return;
+  }
+  if (password !== confirm) {
+    showSignupError("Passwords do not match.");
+    return;
+  }
+  signupSubmit.disabled = true;
+  signupSubmit.textContent = "Creating account…";
+  try {
+    await createUserWithEmailAndPassword(auth, email, password);
+    // onAuthStateChanged → no TOTP factor → mandatory enrollment.
+  } catch (err) {
+    const code = err?.code || "";
+    if (code.includes("email-already-in-use")) {
+      showSignupError("That email already has an account — use Sign in instead.");
+    } else if (code.includes("invalid-email")) {
+      showSignupError("Enter a valid email address.");
+    } else if (code.includes("weak-password")) {
+      showSignupError("Password is too weak — use at least 6 characters.");
+    } else {
+      showSignupError(err?.message || "Sign-up failed.");
+    }
+  } finally {
+    signupSubmit.disabled = false;
+    signupSubmit.textContent = "Create staff account";
+  }
+});
+
+// ---------- auth state routing ----------
+
+if (!isConfigured || !auth) {
+  showAuth("login");
+  showFieldError(loginError, "Portal not connected — missing Firebase config.");
+} else {
+  initAuthView();
+  onAuthStateChanged(auth, async (user) => {
+    authReady = true;
+    hideOfflineNote();
+    if (!user) {
+      showLogin();
+      return;
+    }
+    if (pendingResolver) return; // MFA challenge in progress (verify view shown)
+    let factors = [];
+    try {
+      factors = multiFactor(user).enrolledFactors || [];
+    } catch { factors = []; }
+    if (!factors.length) {
+      // Must enroll Authenticator before anything else.
+      try { await ensureAdminDoc(user, false); } catch { /* rules may reject; enrollment still proceeds */ }
+      startEnrollment(user);
+      return;
+    }
+    const gate = await isOurAdmin(user);
+    if (gate.first) {
+      // Pre-existing account from before setup existed: claim single-admin.
+      try {
+        await claimSetupIfFirst(user);
+        showDashboard(user);
+      } catch {
+        showFieldError(loginError, "Could not claim the staff account — check Firestore rules are deployed.");
+        try { await signOut(auth); } catch { /* ignore */ }
+        showLogin();
+      }
+      return;
+    }
+    if (!gate.ok) {
+      await rejectStray(user);
+      return;
+    }
+    showDashboard(user);
+  });
+}
+
+signOutBtn?.addEventListener("click", async () => {
+  if (!auth) return;
+  await signOut(auth).catch(() => {});
+});
+signOutBtnM?.addEventListener("click", async () => {
+  if (!auth) return;
+  await signOut(auth).catch(() => {});
+});
+
+// ---------- password change ----------
+
+passwordForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showFieldError(passwordError, "");
+  if (passwordOk) passwordOk.hidden = true;
+  const user = auth?.currentUser;
+  const pw = (new FormData(passwordForm).get("password") || "").toString();
+  if (!user) return;
+  if (pw.length < 6) {
+    showFieldError(passwordError, "Password must be at least 6 characters.");
+    return;
+  }
+  passwordSubmit.disabled = true;
+  try {
+    await updatePassword(user, pw);
+    passwordForm.reset();
+    if (passwordOk) {
+      passwordOk.textContent = "Password updated.";
+      passwordOk.hidden = false;
+    }
+  } catch (err) {
+    if ((err?.code || "").includes("requires-recent-login")) {
+      showFieldError(passwordError, "For security, sign out and sign in again, then retry.");
+    } else {
+      showFieldError(passwordError, err?.message || "Could not update password.");
+    }
+  } finally {
+    passwordSubmit.disabled = false;
+  }
+});
+
+// ---------- submissions (kept) ----------
 
 function updateStats() {
   const total = allDocs.length;
@@ -132,14 +689,13 @@ async function loadSubmissions() {
   loading = true;
   if (refreshBtn) refreshBtn.disabled = true;
   setStatus("Loading submissions…");
-  listEl.textContent = "Loading…";
+  if (listEl) listEl.textContent = "Loading…";
   try {
     let docs = [];
     try {
       const snap = await getDocs(query(collection(db, "submissions"), orderBy("createdAt", "desc")));
       docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
     } catch (err) {
-      // Missing composite index / legacy docs without createdAt — fall back
       console.warn("Ordered query failed, retrying unordered:", err?.message);
       const snap = await getDocs(collection(db, "submissions"));
       docs = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
@@ -149,14 +705,15 @@ async function loadSubmissions() {
     if (selectedId && !allDocs.some((s) => s.id === selectedId)) selectedId = null;
     updateStats();
     renderList();
+    renderAttention();
     setStatus("");
   } catch (err) {
     console.error(err);
     const msg = /permission|denied|insufficient/i.test(err?.message || "")
-      ? "Access denied — your account cannot read submissions. Check Firestore rules / admin access."
+      ? "Access denied — deploy the updated firestore.rules so the staff account can read submissions."
       : `Could not load submissions: ${err?.message || err}`;
     setStatus(msg, "error");
-    listEl.textContent = "Could not load submissions.";
+    if (listEl) listEl.textContent = "Could not load submissions.";
   } finally {
     loading = false;
     if (refreshBtn) refreshBtn.disabled = false;
@@ -164,6 +721,7 @@ async function loadSubmissions() {
 }
 
 function renderList() {
+  if (!listEl) return;
   const rows = filteredDocs();
   if (listCount) listCount.textContent = rows.length === allDocs.length
     ? `${allDocs.length} submission${allDocs.length === 1 ? "" : "s"}`
@@ -192,8 +750,40 @@ function renderList() {
     pill.textContent = s.status || "pending";
 
     btn.append(name, meta, pill);
-    btn.addEventListener("click", () => renderDetail(s.id));
+    btn.addEventListener("click", () => {
+      renderDetail(s.id);
+      document.getElementById("detail-card")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
     listEl.appendChild(btn);
+  }
+}
+
+function renderAttention() {
+  if (!attentionList) return;
+  attentionList.innerHTML = "";
+  const pending = allDocs
+    .filter((s) => (s.status || "pending") === "pending")
+    .sort((a, b) => createdMillis(a) - createdMillis(b))
+    .slice(0, 5);
+  if (attentionHint) {
+    attentionHint.textContent = pending.length
+      ? "Oldest pending applications first."
+      : (allDocs.length ? "Nothing pending — all caught up." : "Applications will appear here once students submit.");
+  }
+  for (const s of pending) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "row-item";
+    const name = document.createElement("strong");
+    name.textContent = s.fullName || "—";
+    const meta = document.createElement("span");
+    meta.textContent = `${s.reference || ""} · ${s.school || ""}`;
+    btn.append(name, meta);
+    btn.addEventListener("click", () => {
+      showView("submissions");
+      renderDetail(s.id);
+    });
+    attentionList.appendChild(btn);
   }
 }
 
@@ -206,8 +796,6 @@ function fileNameFromUrl(url) {
   }
 }
 
-// Cross-origin `download` attributes are ignored by browsers, so Download
-// fetches the file and saves it locally. Falls back to a new tab on failure.
 async function downloadFile(url, filename, btn) {
   const safe = safeUrl(url);
   if (!safe) return;
@@ -287,10 +875,10 @@ function detailRow(label, value) {
 
 function renderDetail(id) {
   const s = allDocs.find((x) => x.id === id);
-  if (!s) return;
+  if (!s || !detailEl) return;
   selectedId = id;
-  renderList(); // update highlight
-  detailCard.hidden = false;
+  renderList();
+  if (detailCard) detailCard.hidden = false;
   detailEl.innerHTML = "";
 
   const h = document.createElement("h3");
@@ -350,8 +938,6 @@ function renderDetail(id) {
     if (!window.confirm(`Reject application from ${s.fullName || "this applicant"}?`)) return;
     decide(s, "rejected", approveBtn, rejectBtn);
   });
-
-  detailCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
 }
 
 async function decide(s, nextStatus, approveBtn, rejectBtn) {
@@ -363,11 +949,11 @@ async function decide(s, nextStatus, approveBtn, rejectBtn) {
     await updateDoc(doc(db, "submissions", s.id), {
       status: nextStatus, adminNote: note, updatedAt: serverTimestamp(),
     });
-
     s.status = nextStatus;
     s.adminNote = note;
     updateStats();
     renderList();
+    renderAttention();
     renderDetail(s.id);
     setStatus(`Application ${nextStatus}.`, "ok");
   } catch (err) {
@@ -378,138 +964,6 @@ async function decide(s, nextStatus, approveBtn, rejectBtn) {
   }
 }
 
-function friendlyAuthError(err) {
-  const code = err?.code || "";
-  if (code.includes("invalid-credential") || code.includes("wrong-password") || code.includes("user-not-found")) {
-    return "Wrong email or password.";
-  }
-  if (code.includes("too-many-requests")) return "Too many attempts — try again later.";
-  if (code.includes("network")) return "Network error — check your connection and try again.";
-  return err?.message || "Login failed.";
-}
-
-function showSignupError(msg) {
-  if (!signupError) return;
-  signupError.textContent = msg;
-  signupError.hidden = !msg;
-}
-
-// Tab switching is also wired in js/nav.js (classic script) so the tabs work
-// even if this module fails to load. NOTE: this function must stay
-// self-contained — delegating to window.__adminTab here caused infinite
-// recursion when both scripts loaded (each one pointed at the other).
-function showTab(which) {
-  const login = which !== "signup";
-  loginForm.hidden = !login;
-  signupForm.hidden = login;
-  tabLogin?.classList.toggle("active", login);
-  tabSignup?.classList.toggle("active", !login);
-  tabLogin?.setAttribute("aria-selected", String(login));
-  tabSignup?.setAttribute("aria-selected", String(!login));
-}
-
-if (!window.__adminTabsWired) {
-  window.__adminTabsWired = true;
-  tabLogin?.addEventListener("click", () => showTab("login"));
-  tabSignup?.addEventListener("click", () => showTab("signup"));
-}
-window.__sysadminReady = true;
-
-loginForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  showLoginError("");
-  if (!isConfigured || !auth || !db) {
-    showLoginError("Portal not connected — missing Firebase config.");
-    return;
-  }
-  const fd = new FormData(loginForm);
-  const email = (fd.get("email") || "").toString().trim();
-  const password = (fd.get("password") || "").toString();
-  if (!email || !password) {
-    showLoginError("Enter your email and password.");
-    return;
-  }
-  loginSubmit.disabled = true;
-  loginSubmit.textContent = "Signing in…";
-  try {
-    await signInWithEmailAndPassword(auth, email, password);
-  } catch (err) {
-    showLoginError(friendlyAuthError(err));
-  } finally {
-    loginSubmit.disabled = false;
-    loginSubmit.textContent = "Log in";
-  }
-});
-
-signupForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  showSignupError("");
-  if (!ALLOW_STAFF_SIGNUP) {
-    showSignupError("Staff sign-up is disabled. Ask an existing admin to create your account.");
-    return;
-  }
-  if (!isConfigured || !auth || !db) {
-    showSignupError("Portal not connected — missing Firebase config.");
-    return;
-  }
-  const fd = new FormData(signupForm);
-  const email = (fd.get("email") || "").toString().trim();
-  const password = (fd.get("password") || "").toString();
-  const confirm = (fd.get("confirm") || "").toString();
-  if (!email || !password) {
-    showSignupError("Enter an email and password.");
-    return;
-  }
-  if (password.length < 6) {
-    showSignupError("Password must be at least 6 characters.");
-    return;
-  }
-  if (password !== confirm) {
-    showSignupError("Passwords do not match.");
-    return;
-  }
-  signupSubmit.disabled = true;
-  signupSubmit.textContent = "Creating account…";
-  try {
-    await createUserWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged will open the dashboard.
-  } catch (err) {
-    const code = err?.code || "";
-    if (code.includes("email-already-in-use")) {
-      showSignupError("That email already has an account — use Sign in instead.");
-      showTab("login");
-    } else if (code.includes("invalid-email")) {
-      showSignupError("Enter a valid email address.");
-    } else if (code.includes("weak-password")) {
-      showSignupError("Password is too weak — use at least 6 characters.");
-    } else {
-      showSignupError(err?.message || "Sign-up failed.");
-    }
-  } finally {
-    signupSubmit.disabled = false;
-    signupSubmit.textContent = "Create staff account";
-  }
-});
-
-signOutBtn?.addEventListener("click", async () => {
-  if (!auth) return;
-  await signOut(auth).catch(() => {});
-});
-
 refreshBtn?.addEventListener("click", () => loadSubmissions());
-
 statusFilter?.addEventListener("change", renderList);
 searchInput?.addEventListener("input", renderList);
-
-if (!ALLOW_STAFF_SIGNUP) {
-  tabSignup.hidden = true;
-  showTab("login");
-}
-if (!isConfigured || !auth) {
-  showLoginError("Portal not connected — missing Firebase config.");
-} else {
-  onAuthStateChanged(auth, (user) => {
-    if (user) showDashboard(user);
-    else showLogin();
-  });
-}
