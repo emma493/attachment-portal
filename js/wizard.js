@@ -120,6 +120,14 @@
     return errs;
   }
 
+  function fmtDate(iso) {
+    // Prefer the datepicker's formatter when loaded; fall back to raw value.
+    if (window.__datepicker && window.__datepicker.friendly) {
+      return window.__datepicker.friendly(iso) || iso;
+    }
+    return iso;
+  }
+
   function renderReview() {
     if (!reviewList) return;
     var rows = [
@@ -129,8 +137,8 @@
       ["School", field("school")],
       ["Course", field("course")],
       ["Company", field("company")],
-      ["Start date", field("startDate")],
-      ["End date", field("endDate")],
+      ["Start date", fmtDate(field("startDate"))],
+      ["End date", fmtDate(field("endDate"))],
     ];
     Object.keys(FILE_LABELS).forEach(function (key) {
       var f = fileOf(key);

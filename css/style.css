@@ -188,14 +188,49 @@ img.fp-thumb { display: block; }
 }
 .dp-nav:hover { background: var(--navy-dark); }
 .dp-selects { flex: 1; display: flex; gap: 0.4rem; min-width: 0; }
-.dp-selects select {
-  padding: 8px 6px; font-size: 0.92rem; font-weight: 600;
-  border: 1px solid var(--line); border-radius: 3px;
-  background: #fff; color: var(--navy);
-  max-width: 100%;
+.dp-dd { position: relative; flex: 1; min-width: 0; }
+.dp-dd[data-dd="month"] { flex: 1.5; }
+.dp-dd-btn {
+  width: 100%; min-height: 40px;
+  display: flex; align-items: center; justify-content: space-between; gap: 0.35rem;
+  padding: 8px 8px 8px 10px;
+  font-size: 0.9rem; font-weight: 700; font-family: inherit;
+  color: var(--navy);
+  background: #fff; border: 1px solid var(--line); border-radius: 3px;
+  cursor: pointer;
 }
-.dp-month { flex: 1.4; min-width: 0; }
-.dp-year { flex: 1; min-width: 0; }
+.dp-dd-btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-dd-btn:hover { background: #f2f5fa; }
+.dp-dd-btn svg { flex: none; transition: transform 0.15s ease; }
+.dp-dd.is-open .dp-dd-btn { border-color: var(--navy); }
+.dp-dd.is-open .dp-dd-btn svg { transform: rotate(180deg); }
+.dp-dd-list {
+  position: absolute; z-index: 5; top: calc(100% + 4px); left: 0;
+  display: grid; gap: 2px;
+  background: #fff; border: 1px solid var(--line); border-radius: 6px;
+  box-shadow: 0 12px 28px rgba(7, 28, 64, 0.2);
+  padding: 0.4rem;
+}
+.dp-dd[data-dd="month"] .dp-dd-list {
+  grid-template-columns: repeat(2, 1fr);
+  width: max-content;
+  max-width: calc(100vw - 4rem);
+}
+.dp-dd[data-dd="year"] .dp-dd-list {
+  left: auto; right: 0;
+  grid-template-columns: repeat(3, 1fr);
+  min-width: 172px;
+  max-height: 196px; overflow-y: auto;
+}
+.dp-dd-opt {
+  font-family: inherit; font-size: 0.86rem; font-weight: 600;
+  color: var(--ink);
+  background: none; border: none; border-radius: 4px;
+  padding: 0.5rem 0.6rem; cursor: pointer; white-space: nowrap;
+  min-height: 40px;
+}
+.dp-dd-opt:hover, .dp-dd-opt:focus { background: #f2f5fa; }
+.dp-dd-opt.is-selected, .dp-dd-opt.is-selected:hover, .dp-dd-opt.is-selected:focus { background: var(--navy); color: #fff; }
 .dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .dp-dow {
   text-align: center; font-size: 0.72rem; font-weight: 800;

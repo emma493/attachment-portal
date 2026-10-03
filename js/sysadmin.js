@@ -352,9 +352,10 @@ function showSignupError(msg) {
 }
 
 // Tab switching is also wired in js/nav.js (classic script) so the tabs work
-// even if this module fails to load. Reuse the shared version when present.
+// even if this module fails to load. NOTE: this function must stay
+// self-contained — delegating to window.__adminTab here caused infinite
+// recursion when both scripts loaded (each one pointed at the other).
 function showTab(which) {
-  if (window.__adminTab) { window.__adminTab(which); return; }
   const login = which !== "signup";
   loginForm.hidden = !login;
   signupForm.hidden = login;
@@ -364,7 +365,6 @@ function showTab(which) {
   tabSignup?.setAttribute("aria-selected", String(!login));
 }
 
-if (!window.__adminTab) window.__adminTab = showTab;
 if (!window.__adminTabsWired) {
   window.__adminTabsWired = true;
   tabLogin?.addEventListener("click", () => showTab("login"));

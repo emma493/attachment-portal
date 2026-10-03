@@ -124,7 +124,21 @@
   }
   function onKey(e) {
     if (!pop || pop.hidden) return;
-    if (e.key === "Escape") { e.preventDefault(); close(true); }
+    if (e.key === "Escape") {
+      e.preventDefault();
+      var openList = pop.querySelector(".dp-dd-list:not([hidden])");
+      if (openList) {
+        var dd = openList.closest(".dp-dd");
+        openList.hidden = true;
+        if (dd) {
+          dd.classList.remove("is-open");
+          var b = dd.querySelector(".dp-dd-btn");
+          if (b) { b.setAttribute("aria-expanded", "false"); b.focus(); }
+        }
+        return;
+      }
+      close(true);
+    }
   }
 
   function position(trigger) {
@@ -155,14 +169,33 @@
     var cur = parseISO((hiddenInput(openFor) || {}).value || "");
     var t = todayISO();
 
+    var CHEV = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>';
+    var cy0 = new Date().getFullYear();
+    var yearHtml = "";
+    for (var yy = cy0 - 10; yy <= cy0 + 10; yy++) {
+      yearHtml += '<button type="button" role="option" class="dp-dd-opt' + (yy === viewY ? " is-selected" : "") + '" data-value="' + yy + '"' +
+        (yy === viewY ? ' aria-selected="true"' : "") + ">" + yy + "</button>";
+    }
+
     var html = '<div class="dp-head">' +
       '<button type="button" class="dp-nav" data-nav="-1" aria-label="Previous month">‹</button>' +
       '<div class="dp-selects">' +
-      '<select class="dp-month" aria-label="Month">' +
+      '<div class="dp-dd" data-dd="month">' +
+      '<button type="button" class="dp-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Month, ' + MONTHS[viewM] + '">' +
+      "<span>" + MONTHS[viewM] + "</span>" + CHEV +
+      "</button>" +
+      '<div class="dp-dd-list" role="listbox" aria-label="Month" hidden>' +
       MONTHS.map(function (m, i) {
-        return '<option value="' + i + '"' + (i === viewM ? " selected" : "") + ">" + m + "</option>";
-      }).join("") + "</select>" +
-      '<select class="dp-year" aria-label="Year"></select>' +
+        return '<button type="button" role="option" class="dp-dd-opt' + (i === viewM ? " is-selected" : "") + '" data-value="' + i + '"' +
+          (i === viewM ? ' aria-selected="true"' : "") + ">" + m + "</button>";
+      }).join("") +
+      "</div></div>" +
+      '<div class="dp-dd" data-dd="year">' +
+      '<button type="button" class="dp-dd-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="Year, ' + viewY + '">' +
+      "<span>" + viewY + "</span>" + CHEV +
+      "</button>" +
+      '<div class="dp-dd-list" role="listbox" aria-label="Year" hidden>' + yearHtml + "</div>" +
+      "</div>" +
       "</div>" +
       '<button type="button" class="dp-nav" data-nav="1" aria-label="Next month">›</button>' +
       "</div>" +
@@ -192,30 +225,75 @@
 
     pop.innerHTML = html;
 
-    var yearSel = pop.querySelector(".dp-year");
-    var cy = new Date().getFullYear();
-    var opts = "";
-    for (var y = cy - 10; y <= cy + 10; y++) {
-      opts += '<option value="' + y + '"' + (y === viewY ? " selected" : "") + ">" + y + "</option>";
+    function closeDD() {
+      pop.querySelectorAll(".dp-dd-list").forEach(function (l) { l.hidden = true; });
+      pop.querySelectorAll(".dp-dd").forEach(function (d) {
+        d.classList.remove("is-open");
+        d.querySelector(".dp-dd-btn").setAttribute("aria-expanded", "false");
+      });
     }
-    yearSel.innerHTML = opts;
+
+    pop.querySelectorAll(".dp-dd").forEach(function (dd) {
+      var btn = dd.querySelector(".dp-dd-btn");
+      var list = dd.querySelector(".dp-dd-list");
+      var kind = dd.getAttribute("data-dd");
+      btn.addEventListener("click", function (e) {
+        e.stopPropagation();
+        var willOpen = list.hidden;
+        closeDD();
+        if (willOpen) {
+          list.hidden = false;
+          dd.classList.add("is-open");
+          btn.setAttribute("aria-expanded", "true");
+          var sel = list.querySelector(".is-selected") || list.querySelector(".dp-dd-opt");
+          if (sel) {
+            try { sel.scrollIntoView({ block: "nearest" }); } catch (err) { /* older browsers */ }
+            sel.focus();
+          }
+        }
+      });
+      list.querySelectorAll(".dp-dd-opt").forEach(function (opt) {
+        opt.addEventListener("click", function () {
+          var v = Number(opt.getAttribute("data-value"));
+          if (kind === "month") viewM = v; else viewY = v;
+          render();
+          var nb = pop.querySelector('.dp-dd[data-dd="' + kind + '"] .dp-dd-btn');
+          if (nb) nb.focus();
+        });
+        opt.addEventListener("keydown", function (e) {
+          var opts = Array.prototype.slice.call(list.querySelectorAll(".dp-dd-opt"));
+          var i = opts.indexOf(opt);
+          var cols = kind === "month" ? 2 : 3;
+          var n2 = null;
+          if (e.key === "ArrowRight") n2 = i + 1;
+          else if (e.key === "ArrowLeft") n2 = i - 1;
+          else if (e.key === "ArrowDown") n2 = i + cols;
+          else if (e.key === "ArrowUp") n2 = i - cols;
+          else if (e.key === "Escape") { e.preventDefault(); closeDD(); btn.focus(); return; }
+          else if (e.key === "Tab") { closeDD(); return; }
+          else return;
+          e.preventDefault();
+          if (opts[n2]) opts[n2].focus();
+        });
+      });
+      dd.addEventListener("focusout", function (e) {
+        if (!dd.contains(e.relatedTarget)) {
+          list.hidden = true;
+          dd.classList.remove("is-open");
+          btn.setAttribute("aria-expanded", "false");
+        }
+      });
+    });
 
     pop.querySelectorAll("[data-nav]").forEach(function (b) {
       b.addEventListener("click", function () {
-        var n = new Date(viewY, viewM + Number(b.getAttribute("data-nav")), 1);
+        var dir = b.getAttribute("data-nav");
+        var n = new Date(viewY, viewM + Number(dir), 1);
         viewY = n.getFullYear(); viewM = n.getMonth();
         render();
+        var nb2 = pop.querySelector('[data-nav="' + dir + '"]');
+        if (nb2) nb2.focus();
       });
-    });
-    pop.querySelector(".dp-month").addEventListener("change", function (e) {
-      viewM = Number(e.target.value);
-      render();
-      pop.querySelector(".dp-month").focus();
-    });
-    yearSel.addEventListener("change", function (e) {
-      viewY = Number(e.target.value);
-      render();
-      pop.querySelector(".dp-year").focus();
     });
 
     var days = Array.prototype.slice.call(pop.querySelectorAll(".dp-day"));
@@ -227,25 +305,22 @@
         close(true);
       });
       d.addEventListener("keydown", function (e) {
-        var target = null;
-        if (e.key === "ArrowRight") target = days[idx + 1];
-        else if (e.key === "ArrowLeft") target = days[idx - 1];
-        else if (e.key === "ArrowDown") target = days[idx + 7];
-        else if (e.key === "ArrowUp") target = days[idx - 7];
-        else if (e.key === "Home") target = days[idx - ((idx % 7 + 7) % 7)];
-        else if (e.key === "End") target = days[idx + (6 - ((idx % 7 + 7) % 7))];
-        if (target) {
-          e.preventDefault();
-          // Skip disabled days in the direction of travel.
-          var step = (target === days[idx + 1] || target === days[idx - 1]) ? (e.key === "ArrowRight" ? 1 : -1) : 0;
-          while (target && target.disabled && step !== 0) {
-            idx += step;
-            target = days[idx + (step > 0 ? 1 : -1)] || null;
-            if (target) idx += (step > 0 ? 1 : -1);
-          }
-          if (target && !target.disabled) target.focus();
-          else d.focus();
-        }
+        var n = null;
+        if (e.key === "ArrowRight") n = idx + 1;
+        else if (e.key === "ArrowLeft") n = idx - 1;
+        else if (e.key === "ArrowDown") n = idx + 7;
+        else if (e.key === "ArrowUp") n = idx - 7;
+        else if (e.key === "Home") n = idx - (idx % 7);
+        else if (e.key === "End") n = idx + (6 - (idx % 7));
+        else return;
+        e.preventDefault();
+        // Skip disabled days, continuing in the same direction.
+        var dir = 0;
+        if (e.key === "ArrowRight" || e.key === "ArrowDown") dir = e.key === "ArrowRight" ? 1 : 7;
+        if (e.key === "ArrowLeft" || e.key === "ArrowUp") dir = e.key === "ArrowLeft" ? -1 : -7;
+        while (n >= 0 && n < days.length && days[n].disabled && dir !== 0) n += dir;
+        var t2 = days[n];
+        if (t2 && !t2.disabled) t2.focus();
       });
     });
 
