@@ -336,6 +336,9 @@ progress { width: 100%; accent-color: var(--navy); }
 }
 .ghost-btn:hover { background: var(--bg); }
 .ghost-btn:disabled { opacity: 0.55; cursor: wait; }
+/* TEMPORARY test-data button — remove with the Clear-all feature */
+.danger-btn { color: var(--red); border-color: var(--red); }
+.danger-btn:hover { background: #fbdfe3; }
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
 .stat {
   background: #fff; border: 1px solid var(--line); border-radius: 6px;

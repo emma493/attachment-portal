@@ -2,7 +2,7 @@ import { db, auth, isConfigured } from "./firebase-config.js";
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "firebase/auth";
 import {
   collection, query, orderBy, getDocs,
-  doc, updateDoc, addDoc, serverTimestamp,
+  doc, updateDoc, addDoc, writeBatch, serverTimestamp,
 } from "firebase/firestore";
 
 // SECURITY NOTE: this page allows anyone who finds /sysadmin to create a
@@ -26,6 +26,7 @@ const signupSubmit = document.getElementById("signup-submit");
 const adminUser = document.getElementById("admin-user");
 const signOutBtn = document.getElementById("signout-btn");
 const refreshBtn = document.getElementById("refresh-btn");
+const clearBtn = document.getElementById("clear-btn");
 const listEl = document.getElementById("submissions-list");
 const detailCard = document.getElementById("detail-card");
 const detailEl = document.getElementById("submission-detail");
@@ -532,6 +533,38 @@ signOutBtn?.addEventListener("click", async () => {
 });
 
 refreshBtn?.addEventListener("click", () => loadSubmissions());
+
+// TEMPORARY test-data cleanup: delete every loaded submission in batches.
+// Remove this handler + button + danger styles + the rules exception
+// before going live.
+clearBtn?.addEventListener("click", async () => {
+  if (!allDocs.length) { setStatus("Nothing to clear.", "error"); return; }
+  const n = allDocs.length;
+  if (!window.confirm(`Delete ALL ${n} submission${n === 1 ? "" : "s"}? This cannot be undone.`)) return;
+  if (!window.confirm("Really delete everything? Last chance.")) return;
+  clearBtn.disabled = true;
+  setStatus(`Deleting ${n}…`);
+  try {
+    for (let i = 0; i < allDocs.length; i += 450) {
+      const batch = writeBatch(db);
+      allDocs.slice(i, i + 450).forEach((s) => batch.delete(doc(db, "submissions", s.id)));
+      await batch.commit();
+    }
+    allDocs = [];
+    selectedId = null;
+    detailEl.innerHTML = "";
+    detailCard.hidden = true;
+    updateStats();
+    renderList();
+    setStatus(`Deleted ${n} submission${n === 1 ? "" : "s"}.`, "ok");
+  } catch (err) {
+    console.error(err);
+    setStatus(`Delete failed: ${err?.message || err}. If access was denied, publish the latest firestore.rules first, then retry.`, "error");
+    loadSubmissions().catch(() => {});
+  } finally {
+    clearBtn.disabled = false;
+  }
+});
 statusFilter?.addEventListener("change", renderList);
 searchInput?.addEventListener("input", renderList);
 
