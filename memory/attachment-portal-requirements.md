@@ -147,17 +147,15 @@ Collection: `submissions`
 - [ ] Admin login email(s)?
 - [ ] Cloudinary account created + cloud name + unsigned preset name?
 
-## 11. Admin auth v2 (2026-10-03 — single admin + mandatory TOTP 2FA + side menu)
+## 11. Admin auth v2 (2026-10-03 — single admin + side menu, light mode)
 - Exactly ONE staff account. `config/setup { setupDone, adminUid }` is publicly
   readable (boolean only); page shows sign-up ONCE, then sign-in only.
   `firestore.rules` must be deployed from the repo: submissions read/update
   restricted to `admins/{uid}` owner; second UIDs can never become admin.
-- 2FA required at every login via Firebase Auth TOTP MFA
-  (`TotpMultiFactorGenerator`); enroll shows QR (cdnjs qrcodejs, manual-key
-  fallback) + 6-digit verify. No self-service reset — locked-out recovery is
-  Firebase Console → Authentication → user → remove second factor.
-- Dashboard is a side-menu shell (`sysadmin.html`): Overview (stats + oldest
-  pending), Submissions (filters/list/detail, approve/reject unchanged),
-  Security (2FA status, password change, stray-account guidance).
+- NOTE: Google Authenticator 2FA was added then REMOVED per owner request —
+  no TOTP code at login. All MFA UI, logic and the vendored QR lib deleted.
+- Dashboard matches the user page chrome (top strip, header/nav, slim hero,
+  footer) in light mode, with a collapsible white side rail (Overview,
+  Submissions, Security) + mobile nav card.
 - If stray email/password users exist in Auth, delete them in console — they
   are signed straight back out and cannot read anything.

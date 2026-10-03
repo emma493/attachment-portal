@@ -5,9 +5,6 @@ import {
   onAuthStateChanged,
   signOut,
   updatePassword,
-  multiFactor,
-  TotpMultiFactorGenerator,
-  getMultiFactorResolver,
 } from "firebase/auth";
 import {
   collection, query, orderBy, getDocs,
@@ -19,8 +16,6 @@ import {
 // login form is ever shown. A second UID can never read submissions —
 // firestore.rules restricts submissions read/update to admins/{uid} owners
 // and only the first UID can claim config/setup.
-// Two-step verification (Google Authenticator) is MANDATORY via Firebase
-// Auth TOTP multi-factor: no dashboard without an enrolled TOTP factor.
 
 const SETUP_REF = () => doc(db, "config", "setup");
 const adminDocRef = (uid) => doc(db, "admins", uid);
@@ -34,22 +29,9 @@ const loginError = document.getElementById("login-error");
 const loginSubmit = document.getElementById("login-submit");
 const signupError = document.getElementById("signup-error");
 const signupSubmit = document.getElementById("signup-submit");
-const enrollSection = document.getElementById("mfa-enroll-section");
-const enrollForm = document.getElementById("enroll-form");
-const enrollError = document.getElementById("enroll-error");
-const enrollSubmit = document.getElementById("enroll-submit");
-const qrBox = document.getElementById("qr-box");
-const totpKeyEl = document.getElementById("totp-key");
-const copyKeyBtn = document.getElementById("copy-key");
-const verifySection = document.getElementById("mfa-verify-section");
-const verifyForm = document.getElementById("verify-form");
-const verifyError = document.getElementById("verify-error");
-const verifySubmit = document.getElementById("verify-submit");
-const verifyBack = document.getElementById("verify-back");
 const dashSection = document.getElementById("dashboard-section");
 const adminUser = document.getElementById("admin-user");
 const sideUser = document.getElementById("side-user");
-const mfaBadge = document.getElementById("mfa-badge");
 const signOutBtn = document.getElementById("signout-btn");
 const refreshBtn = document.getElementById("refresh-btn");
 const listEl = document.getElementById("submissions-list");
@@ -67,7 +49,6 @@ const statApproved = document.getElementById("stat-approved");
 const statRejected = document.getElementById("stat-rejected");
 const viewTitle = document.getElementById("view-title");
 const secEmail = document.getElementById("sec-email");
-const sec2fa = document.getElementById("sec-2fa");
 const liveLine = document.getElementById("live-line");
 const adminShell = document.getElementById("admin-shell");
 const railToggle = document.getElementById("rail-toggle");
@@ -81,8 +62,6 @@ let allDocs = [];
 let selectedId = null;
 let loading = false;
 let setupDone = null; // null = unknown yet
-let pendingSecret = null;
-let pendingResolver = null;
 let currentView = "overview";
 let authReady = false;
 
@@ -104,8 +83,6 @@ function showFieldError(el, msg) {
 
 function hideAll() {
   loginSection.hidden = true;
-  enrollSection.hidden = true;
-  verifySection.hidden = true;
   dashSection.hidden = true;
 }
 
@@ -119,7 +96,7 @@ function showAuth(mode) {
   if (authH) authH.textContent = signup ? "Create the staff account" : "Staff sign in";
   if (authSub) authSub.textContent = signup
     ? "This is shown once. After this account exists, only Sign in is shown."
-    : "Sign in with the staff account, then enter your Authenticator code.";
+    : "Sign in with the staff account.";
   if (viewTitle) viewTitle.textContent = signup ? "Staff setup" : "Staff access";
   setMenuEnabled(false);
 }
@@ -235,11 +212,10 @@ async function initAuthView() {
 
 // ---------- admin claim + dashboard ----------
 
-async function ensureAdminDoc(user, totpEnabled) {
+async function ensureAdminDoc(user) {
   try {
     await setDoc(adminDocRef(user.uid), {
       email: user.email || "",
-      totpEnabled: !!totpEnabled,
       createdAt: serverTimestamp(),
     }, { merge: true });
   } catch (err) {
@@ -254,7 +230,7 @@ async function claimSetupIfFirst(user) {
   // while setup is unclaimed), then config/setup.
   const setup = await readSetup();
   if (setup && setup.done) return setup.data;
-  await ensureAdminDoc(user, true);
+  await ensureAdminDoc(user);
   try {
     await setDoc(SETUP_REF(), {
       setupDone: true,
@@ -283,10 +259,8 @@ function showDashboard(user) {
   document.body.classList.add("authed");
   if (adminUser) adminUser.textContent = user?.email ? `Signed in as ${user.email}` : "";
   if (sideUser) sideUser.textContent = user?.email || "Signed in";
-  if (mfaBadge) mfaBadge.hidden = false;
   if (liveLine) liveLine.hidden = false;
   if (secEmail) secEmail.textContent = user?.email || "—";
-  if (sec2fa) sec2fa.textContent = "On — Google Authenticator (required at every sign in)";
   setMenuEnabled(true);
   const hashView = (location.hash || "").replace("#/", "");
   showView(VIEW_TITLES[hashView] ? hashView : currentView);
@@ -296,164 +270,19 @@ function showDashboard(user) {
 function showLogin() {
   setMenuEnabled(false);
   document.body.classList.remove("authed");
-  if (mfaBadge) mfaBadge.hidden = true;
   if (liveLine) liveLine.hidden = true;
   allDocs = [];
   selectedId = null;
-  pendingSecret = null;
-  pendingResolver = null;
   showAuth(setupDone ? "login" : "signup");
 }
 
 async function rejectStray(user) {
   try { await signOut(auth); } catch { /* ignore */ }
   showLogin();
-  showFieldError(loginError, "This is not the staff account. Only the one enrolled staff account can access this dashboard.");
+  showFieldError(loginError, "This is not the staff account. Only the one staff account can access this dashboard.");
 }
 
-// ---------- TOTP enrollment (mandatory) ----------
-
-function renderQr(url) {
-  if (!qrBox) return;
-  qrBox.innerHTML = "";
-  if (!url) {
-    const p = document.createElement("p");
-    p.className = "hint";
-    p.textContent = "QR code unavailable — enter the key shown here manually in Authenticator.";
-    qrBox.appendChild(p);
-    return;
-  }
-  try {
-    if (window.QRCode) {
-      // vendored qrcodejs (js/qrcode-lib.min.js) — same origin, no extra host
-      new window.QRCode(qrBox, { text: url, width: 180, height: 180, correctLevel: 1 });
-      if (qrBox.querySelector("img, canvas, table")) return;
-    }
-  } catch (err) {
-    console.warn("QR render failed, manual key remains:", err?.message);
-  }
-  const p = document.createElement("p");
-  p.className = "hint";
-  p.textContent = "QR code unavailable — enter the key shown here manually in Authenticator.";
-  qrBox.appendChild(p);
-}
-
-async function startEnrollment(user) {
-  hideAll();
-  enrollSection.hidden = false;
-  if (viewTitle) viewTitle.textContent = "Two-step setup";
-  setMenuEnabled(false);
-  showFieldError(enrollError, "");
-  if (!pendingSecret) {
-    try {
-      const session = await multiFactor(user).getSession();
-      pendingSecret = await TotpMultiFactorGenerator.generateSecret(session);
-    } catch (err) {
-      console.error(err);
-      showFieldError(enrollError, "Could not start authenticator setup. Check your connection and try again.");
-      return;
-    }
-  }
-  const url = pendingSecret.generateQrCodeUrl(user.email || "DVLA admin", "DVLA Ghana");
-  if (!pendingSecret.secretKey) {
-    pendingSecret = null;
-    showFieldError(enrollError, "Authenticator setup failed to start — reload the page and try again.");
-    return;
-  }
-  if (totpKeyEl) totpKeyEl.textContent = pendingSecret.secretKey || "";
-  renderQr(url);
-  document.getElementById("enroll-code")?.focus();
-}
-
-async function copyText(txt) {
-  if (!txt) return false;
-  try {
-    if (navigator.clipboard) {
-      await navigator.clipboard.writeText(txt);
-      return true;
-    }
-    throw new Error("no-clipboard");
-  } catch {
-    // Non-secure contexts (http/file) have no async clipboard — fall back.
-    try {
-      const ta = document.createElement("textarea");
-      ta.value = txt;
-      ta.setAttribute("readonly", "");
-      ta.style.position = "fixed";
-      ta.style.opacity = "0";
-      document.body.appendChild(ta);
-      ta.select();
-      ta.setSelectionRange(0, ta.value.length);
-      const ok = document.execCommand("copy");
-      ta.remove();
-      return ok;
-    } catch {
-      return false;
-    }
-  }
-}
-
-function flashCopy(btn, ok) {
-  if (!btn) return;
-  if (!btn.dataset.orig) btn.dataset.orig = btn.textContent;
-  btn.textContent = ok ? "Copied!" : "Copy failed";
-  setTimeout(() => { btn.textContent = btn.dataset.orig; }, 2000);
-}
-
-// Tap the key itself to select it for manual copying.
-totpKeyEl?.addEventListener("click", () => {
-  try {
-    const r = document.createRange();
-    r.selectNodeContents(totpKeyEl);
-    const sel = window.getSelection();
-    sel?.removeAllRanges();
-    sel?.addRange(r);
-  } catch { /* ignore */ }
-});
-
-copyKeyBtn?.addEventListener("click", async () => {
-  const txt = (totpKeyEl?.textContent || "").trim();
-  if (!txt) return;
-  flashCopy(copyKeyBtn, await copyText(txt));
-});
-
-enrollForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  showFieldError(enrollError, "");
-  const user = auth?.currentUser;
-  const code = (new FormData(enrollForm).get("code") || "").toString().trim().replace(/\s/g, "");
-  if (!user || !pendingSecret) {
-    showFieldError(enrollError, "Session expired — sign in again.");
-    return;
-  }
-  if (!/^\d{6}$/.test(code)) {
-    showFieldError(enrollError, "Enter the 6-digit code from Authenticator.");
-    return;
-  }
-  enrollSubmit.disabled = true;
-  enrollSubmit.textContent = "Verifying…";
-  try {
-    const assertion = TotpMultiFactorGenerator.assertionForEnrollment(pendingSecret, code);
-    await multiFactor(user).enroll(assertion, "Google Authenticator");
-    pendingSecret = null;
-    await ensureAdminDoc(user, true);
-    await claimSetupIfFirst(user);
-    showDashboard(user);
-  } catch (err) {
-    console.error(err);
-    const c = err?.code || "";
-    if (c.includes("invalid-verification-code") || /invalid|mismatch|incorrect/i.test(err?.message || "")) {
-      showFieldError(enrollError, "That code didn't work — check the time on your phone and try the current code.");
-    } else {
-      showFieldError(enrollError, err?.message || "Verification failed. Try again.");
-    }
-  } finally {
-    enrollSubmit.disabled = false;
-    enrollSubmit.textContent = "Verify & finish setup";
-  }
-});
-
-// ---------- login + MFA challenge ----------
+// ---------- login ----------
 
 function friendlyAuthError(err) {
   const code = err?.code || "";
@@ -483,66 +312,13 @@ loginForm?.addEventListener("submit", async (e) => {
   loginSubmit.textContent = "Signing in…";
   try {
     await signInWithEmailAndPassword(auth, email, password);
-    // Success without MFA challenge → onAuthStateChanged routes onward.
+    // Success → onAuthStateChanged routes to the dashboard.
   } catch (err) {
-    if (err?.code === "auth/multi-factor-auth-required") {
-      try {
-        pendingResolver = getMultiFactorResolver(auth, err);
-        hideAll();
-        verifySection.hidden = false;
-        if (viewTitle) viewTitle.textContent = "Two-step verification";
-        document.getElementById("verify-code")?.focus();
-      } catch (rErr) {
-        showFieldError(loginError, friendlyAuthError(rErr));
-      }
-    } else {
-      showFieldError(loginError, friendlyAuthError(err));
-    }
+    showFieldError(loginError, friendlyAuthError(err));
   } finally {
     loginSubmit.disabled = false;
     loginSubmit.textContent = "Log in";
   }
-});
-
-verifyForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  showFieldError(verifyError, "");
-  const code = (new FormData(verifyForm).get("code") || "").toString().trim().replace(/\s/g, "");
-  if (!pendingResolver) {
-    showFieldError(verifyError, "Session expired — sign in again.");
-    return;
-  }
-  if (!/^\d{6}$/.test(code)) {
-    showFieldError(verifyError, "Enter the 6-digit code from Authenticator.");
-    return;
-  }
-  const hint = (pendingResolver.hints || []).find(
-    (h) => h.factorId === TotpMultiFactorGenerator.FACTOR_ID
-  ) || pendingResolver.hints[0];
-  if (!hint) {
-    showFieldError(verifyError, "No authenticator is enrolled on this sign-in. Use the enrolled device.");
-    return;
-  }
-  verifySubmit.disabled = true;
-  verifySubmit.textContent = "Verifying…";
-  try {
-    const assertion = TotpMultiFactorGenerator.assertionForSignIn(hint.uid, code);
-    await pendingResolver.resolveSignIn(assertion);
-    pendingResolver = null;
-    // onAuthStateChanged routes to the dashboard.
-  } catch (err) {
-    console.error(err);
-    showFieldError(verifyError, "That code didn't work — try the current code from Authenticator.");
-  } finally {
-    verifySubmit.disabled = false;
-    verifySubmit.textContent = "Verify & open dashboard";
-  }
-});
-
-verifyBack?.addEventListener("click", async () => {
-  pendingResolver = null;
-  try { await signOut(auth); } catch { /* ignore */ }
-  showLogin();
 });
 
 // ---------- first-run signup (shown once, ever) ----------
@@ -591,7 +367,8 @@ signupForm?.addEventListener("submit", async (e) => {
   signupSubmit.textContent = "Creating account…";
   try {
     await createUserWithEmailAndPassword(auth, email, password);
-    // onAuthStateChanged → no TOTP factor → mandatory enrollment.
+    // onAuthStateChanged routes the new staff account to the dashboard
+    // (and claims the one-time setup if this is the first account).
   } catch (err) {
     const code = err?.code || "";
     if (code.includes("email-already-in-use")) {
@@ -622,21 +399,12 @@ if (!isConfigured || !auth) {
       showLogin();
       return;
     }
-    if (pendingResolver) return; // MFA challenge in progress (verify view shown)
-    let factors = [];
-    try {
-      factors = multiFactor(user).enrolledFactors || [];
-    } catch { factors = []; }
-    if (!factors.length) {
-      // Must enroll Authenticator before anything else.
-      try { await ensureAdminDoc(user, false); } catch { /* rules may reject; enrollment still proceeds */ }
-      startEnrollment(user);
-      return;
-    }
     const gate = await isOurAdmin(user);
     if (gate.first) {
-      // Pre-existing account from before setup existed: claim single-admin.
+      // No setup claimed yet: this signed-in user IS the single admin.
+      // (Claim the admin doc too, so rules stay consistent.)
       try {
+        await ensureAdminDoc(user);
         await claimSetupIfFirst(user);
         showDashboard(user);
       } catch {
@@ -650,6 +418,7 @@ if (!isConfigured || !auth) {
       await rejectStray(user);
       return;
     }
+    try { await ensureAdminDoc(user); } catch { /* best effort */ }
     showDashboard(user);
   });
 }

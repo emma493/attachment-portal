@@ -21,7 +21,6 @@
       }
     }
   </script>
-  <script src="js/qrcode-lib.min.js" defer></script>
 </head>
 <body class="admin-body">
   <div class="top-strip">
@@ -109,7 +108,6 @@
           <h1 id="view-title">Staff access</h1>
           <p class="live-line" id="live-line" hidden>Live — Firestore real-time</p>
         </div>
-        <span class="mfa-badge" id="mfa-badge" hidden>2FA ✓</span>
       </header>
 
       <main class="admin-main">
@@ -137,47 +135,6 @@
             <p id="signup-error" class="field-error" role="alert" hidden></p>
             <button type="submit" class="cta" id="signup-submit">Create staff account</button>
           </form>
-        </section>
-
-        <!-- 2FA enrollment (mandatory, first run + any factor-less session) -->
-        <section id="mfa-enroll-section" class="card auth-card" aria-labelledby="enroll-h" hidden>
-          <h2 id="enroll-h">Set up two-step verification</h2>
-          <p class="hint">Scan this code with <strong>Google Authenticator</strong> (or any authenticator app), then enter the 6-digit code. This is required — the dashboard stays locked until it is done.</p>
-          <ol class="mfa-steps">
-            <li>
-              <strong>1. Scan or enter the key</strong>
-              <div class="qr-row">
-                <div id="qr-box" class="qr-box" role="img" aria-label="Authenticator QR code"></div>
-                <div class="qr-key">
-                  <p class="hint">Can't scan? Enter this key manually:</p>
-                  <div class="success-ref-row"><code id="totp-key"></code><button type="button" class="copy-btn" id="copy-key">Copy</button></div>
-                </div>
-              </div>
-            </li>
-            <li>
-              <strong>2. Enter the 6-digit code</strong>
-              <form id="enroll-form" novalidate>
-                <label for="enroll-code">Code from Authenticator <span class="req" aria-hidden="true">*</span></label>
-                <input id="enroll-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" class="code-input" />
-                <p id="enroll-error" class="field-error" role="alert" hidden></p>
-                <button type="submit" class="cta" id="enroll-submit">Verify &amp; finish setup</button>
-              </form>
-              <p class="hint">Save the key somewhere safe (password manager). If you lose your phone, the key is the only way back in without a Firebase Console reset.</p>
-            </li>
-          </ol>
-        </section>
-
-        <!-- 2FA challenge on every login -->
-        <section id="mfa-verify-section" class="card auth-card" aria-labelledby="verify-h" hidden>
-          <h2 id="verify-h">Two-step verification</h2>
-          <p class="hint">Open <strong>Google Authenticator</strong> and enter the 6-digit code for this account.</p>
-          <form id="verify-form" novalidate>
-            <label for="verify-code">6-digit code <span class="req" aria-hidden="true">*</span></label>
-            <input id="verify-code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="123456" class="code-input" />
-            <p id="verify-error" class="field-error" role="alert" hidden></p>
-            <button type="submit" class="cta" id="verify-submit">Verify &amp; open dashboard</button>
-          </form>
-          <p><button type="button" class="save-draft" id="verify-back">← Back to sign in</button></p>
         </section>
 
         <!-- Dashboard -->
@@ -229,7 +186,6 @@
               <h2>Security</h2>
               <dl class="detail-grid">
                 <div class="detail-row"><dt>Staff account</dt><dd id="sec-email">—</dd></div>
-                <div class="detail-row"><dt>Two-step verification</dt><dd id="sec-2fa">—</dd></div>
                 <div class="detail-row"><dt>Staff sign-up</dt><dd>Locked — this portal allows exactly one staff account.</dd></div>
               </dl>
               <h3>Change password</h3>
@@ -240,8 +196,8 @@
                 <p id="password-ok" class="hint" role="status" hidden></p>
                 <button type="submit" class="cta" id="password-submit">Update password</button>
               </form>
-              <h3>Locked out of Authenticator?</h3>
-              <p class="hint">There is no self-service reset for the single staff account. In Firebase Console → Authentication → find the staff user → remove the second factor, then sign in again and re-enroll. Keep the setup key from above stored safely to avoid this.</p>
+              <h3>Protect this account</h3>
+              <p class="hint">Use a strong, unique password and never share it. If you suspect someone else signed in, change the password immediately.</p>
               <h3>Stray accounts</h3>
               <p class="hint">If anyone ever created an extra email/password account, it can sign in to Firebase but this portal signs it straight back out and it cannot read submissions. Delete unknown users in Firebase Console → Authentication → Users.</p>
             </div>

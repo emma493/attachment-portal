@@ -447,7 +447,7 @@ progress { width: 100%; accent-color: var(--navy); }
 .doc-dl { background: #fff; color: var(--navy); border: 2px solid var(--navy); }
 .doc-dl:hover { background: var(--bg); }
 .doc-dl:disabled { opacity: 0.6; cursor: wait; }
-#login-error, #signup-error, #enroll-error, #verify-error, #password-error { margin: 0; }
+#login-error, #signup-error, #password-error { margin: 0; }
 textarea {
   width: 100%; padding: 12px; font-size: 1rem; font-family: inherit;
   border: 1px solid #e6e6e6; border-radius: 3px;
@@ -632,26 +632,10 @@ textarea {
 .admin-topbar > div { display: flex; align-items: baseline; gap: 0.8rem; flex-wrap: wrap; }
 .admin-topbar h1 { margin: 0; font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; color: var(--navy); }
 .live-line { margin: 0; font-size: 0.85rem; color: var(--muted); }
-.mfa-badge {
-  margin-left: auto; flex: none;
-  background: var(--green-soft); color: var(--green);
-  border-radius: 999px; padding: 0.25rem 0.8rem;
-  font-size: 0.82rem; font-weight: 800;
-}
 .admin-main { display: grid; gap: 1rem; align-content: start; min-width: 0; }
 .page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
 .auth-card { max-width: 560px; }
 .auth-card form { gap: 0.7rem; }
-.mfa-steps { margin: 0; padding-left: 1.2rem; display: grid; gap: 1.1rem; }
-.mfa-steps li::marker { font-weight: 800; color: var(--navy); }
-.qr-row { display: flex; gap: 1rem; align-items: flex-start; flex-wrap: wrap; margin-top: 0.6rem; }
-.qr-box { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 0.7rem; min-width: 204px; min-height: 204px; display: grid; place-items: center; }
-.qr-box img, .qr-box canvas { display: block; border-radius: 4px; }
-.qr-key { flex: 1; min-width: 220px; display: grid; gap: 0.4rem; align-content: start; }
-.qr-key code { user-select: all; }
-.code-input { font-size: 1.5rem !important; letter-spacing: 0.5em; text-align: center; font-variant-numeric: tabular-nums; max-width: 280px; }
-.admin-view { display: grid; gap: 1rem; }
-#attention-list { display: grid; gap: 0.5rem; }
 .admin-view h3 { margin: 0.4rem 0 0; color: var(--navy); font-size: 1.02rem; }
 
 /* Stat cards: icon + label top, big number, sub-line */
