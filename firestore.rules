@@ -14,7 +14,8 @@ service cloud.firestore {
         && request.resource.data.email is string;
       // Only the single staff admin can read/update.
       allow read, update: if isAdmin();
-      allow delete: if false;
+      // Admin-only delete (used by the dashboard bulk/single delete).
+      allow delete: if isAdmin();
     }
 
     // Single-admin registry. Each user may only create/read their own doc.
