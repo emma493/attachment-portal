@@ -316,18 +316,25 @@ async function rejectStray(user) {
 function renderQr(url) {
   if (!qrBox) return;
   qrBox.innerHTML = "";
+  if (!url) {
+    const p = document.createElement("p");
+    p.className = "hint";
+    p.textContent = "QR code unavailable — enter the key shown here manually in Authenticator.";
+    qrBox.appendChild(p);
+    return;
+  }
   try {
     if (window.QRCode) {
-      // qrcodejs (cdnjs) UMD global
-      new window.QRCode(qrBox, { text: url, width: 180, height: 180 });
-      return;
+      // vendored qrcodejs (js/qrcode-lib.min.js) — same origin, no extra host
+      new window.QRCode(qrBox, { text: url, width: 180, height: 180, correctLevel: 1 });
+      if (qrBox.querySelector("img, canvas, table")) return;
     }
   } catch (err) {
     console.warn("QR render failed, manual key remains:", err?.message);
   }
   const p = document.createElement("p");
   p.className = "hint";
-  p.textContent = "QR unavailable — enter the key above manually in Authenticator.";
+  p.textContent = "QR code unavailable — enter the key shown here manually in Authenticator.";
   qrBox.appendChild(p);
 }
 
