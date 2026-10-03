@@ -64,27 +64,24 @@
     }
   }
 
-  // Fallback: if the Firebase module never boots, stop the forms from
-  // doing a dead page reload and explain instead.
-  function offlineGuard(formId) {
+  // Fallback: if the Firebase module never boots (offline, blocked CDN,
+  // file://), stop the forms from doing a dead page reload and explain
+  // inline on the form itself.
+  function offlineGuard(formId, errId) {
     var form = document.getElementById(formId);
     if (!form || form.__offlineGuard) return;
     form.__offlineGuard = true;
     form.addEventListener("submit", function (e) {
       if (!window.__sysadminReady) {
         e.preventDefault();
-        var note = document.getElementById("auth-offline-note");
-        if (note) note.hidden = false;
+        var err = document.getElementById(errId);
+        if (err) {
+          err.textContent = "Sign-in isn't available right now — check your connection and reload the page.";
+          err.hidden = false;
+        }
       }
     });
   }
-  offlineGuard("login-form");
-  offlineGuard("signup-form");
-
-  setTimeout(function () {
-    if (!window.__sysadminReady) {
-      var note = document.getElementById("auth-offline-note");
-      if (note) note.hidden = false;
-    }
-  }, 8000);
+  offlineGuard("login-form", "login-error");
+  offlineGuard("signup-form", "signup-error");
 })();

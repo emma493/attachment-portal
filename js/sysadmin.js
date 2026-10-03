@@ -217,28 +217,19 @@ async function readSetup() {
   }
 }
 
-function hideOfflineNote() {
-  const note = document.getElementById("auth-offline-note");
-  if (note) note.hidden = true;
-}
-
 async function initAuthView() {
   if (!isConfigured || !auth || !db) {
     showAuth("login");
     showFieldError(loginError, "Portal not connected — missing Firebase config.");
-    const note = document.getElementById("auth-offline-note");
-    if (note) note.hidden = false;
     return;
   }
   const setup = await readSetup();
   if (setup === null) {
     showAuth("login");
-    const note = document.getElementById("auth-offline-note");
-    if (note) note.hidden = false;
+    showFieldError(loginError, "Sign-in isn't available right now — check your connection and reload the page.");
     return;
   }
   setupDone = setup.done;
-  hideOfflineNote(); // module booted + Firestore reachable — cancel the slow-network false alarm
   showAuth(setup.done ? "login" : "signup");
 }
 
@@ -357,19 +348,66 @@ async function startEnrollment(user) {
     }
   }
   const url = pendingSecret.generateQrCodeUrl(user.email || "DVLA admin", "DVLA Ghana");
+  if (!pendingSecret.secretKey) {
+    pendingSecret = null;
+    showFieldError(enrollError, "Authenticator setup failed to start — reload the page and try again.");
+    return;
+  }
   if (totpKeyEl) totpKeyEl.textContent = pendingSecret.secretKey || "";
   renderQr(url);
   document.getElementById("enroll-code")?.focus();
 }
 
-copyKeyBtn?.addEventListener("click", () => {
-  const txt = totpKeyEl?.textContent || "";
-  const done = () => {
-    copyKeyBtn.textContent = "Copied!";
-    setTimeout(() => { copyKeyBtn.textContent = "Copy"; }, 2000);
-  };
-  if (navigator.clipboard && txt) navigator.clipboard.writeText(txt).then(done, done);
-  else done();
+async function copyText(txt) {
+  if (!txt) return false;
+  try {
+    if (navigator.clipboard) {
+      await navigator.clipboard.writeText(txt);
+      return true;
+    }
+    throw new Error("no-clipboard");
+  } catch {
+    // Non-secure contexts (http/file) have no async clipboard — fall back.
+    try {
+      const ta = document.createElement("textarea");
+      ta.value = txt;
+      ta.setAttribute("readonly", "");
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.appendChild(ta);
+      ta.select();
+      ta.setSelectionRange(0, ta.value.length);
+      const ok = document.execCommand("copy");
+      ta.remove();
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+}
+
+function flashCopy(btn, ok) {
+  if (!btn) return;
+  if (!btn.dataset.orig) btn.dataset.orig = btn.textContent;
+  btn.textContent = ok ? "Copied!" : "Copy failed";
+  setTimeout(() => { btn.textContent = btn.dataset.orig; }, 2000);
+}
+
+// Tap the key itself to select it for manual copying.
+totpKeyEl?.addEventListener("click", () => {
+  try {
+    const r = document.createRange();
+    r.selectNodeContents(totpKeyEl);
+    const sel = window.getSelection();
+    sel?.removeAllRanges();
+    sel?.addRange(r);
+  } catch { /* ignore */ }
+});
+
+copyKeyBtn?.addEventListener("click", async () => {
+  const txt = (totpKeyEl?.textContent || "").trim();
+  if (!txt) return;
+  flashCopy(copyKeyBtn, await copyText(txt));
 });
 
 enrollForm?.addEventListener("submit", async (e) => {
@@ -573,7 +611,6 @@ if (!isConfigured || !auth) {
   initAuthView();
   onAuthStateChanged(auth, async (user) => {
     authReady = true;
-    hideOfflineNote();
     if (!user) {
       showLogin();
       return;
