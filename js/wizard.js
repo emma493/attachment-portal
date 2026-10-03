@@ -40,7 +40,7 @@
   var STEP_OF = {
     fullName: 0, phone: 0, email: 0,
     school: 1, course: 1, company: 1, startDate: 1, endDate: 1,
-    schoolLetter: 2, cv: 2, ghanaCard: 2,
+    schoolLetter: 2, cv: 2, ghanaCard: 2, consent: 3,
   };
 
   function clearErrors() {
@@ -56,6 +56,21 @@
     clearErrors();
     if (!errors.length) return true;
     errors.forEach(function (e) {
+      if (e.field === "consent") {
+        var cMsg = document.getElementById("err-consent");
+        if (cMsg) { cMsg.textContent = e.msg; cMsg.hidden = false; }
+        if (errorList) {
+          var liC = document.createElement("li");
+          var aC = document.createElement("a");
+          aC.href = "#consent-check";
+          aC.textContent = e.msg;
+          liC.appendChild(aC);
+          errorList.appendChild(liC);
+        }
+        var cc = document.getElementById("consent-check");
+        if (cc && "setAttribute" in cc) cc.setAttribute("aria-invalid", "true");
+        return;
+      }
       var wrap = document.getElementById("f-" + e.field);
       var msgEl = document.getElementById("err-" + e.field);
       if (wrap) wrap.classList.add("has-error");
@@ -117,6 +132,10 @@
         if (!validFile(fileOf(key))) errs.push({ field: key, msg: FILE_LABELS[key] + " must be PDF, JPG or PNG under " + MAX_FILE_MB + "MB" });
       });
     }
+    if (n === 3) {
+      var consent = document.getElementById("consent-check");
+      if (consent && !consent.checked) errs.push({ field: "consent", msg: "Tick the confirmation box to submit" });
+    }
     return errs;
   }
 
@@ -130,32 +149,68 @@
 
   function renderReview() {
     if (!reviewList) return;
-    var rows = [
+    var personal = [
       ["Full name", field("fullName")],
       ["Phone", field("phone")],
       ["Email", field("email")],
+    ];
+    var school = [
       ["School", field("school")],
       ["Course", field("course")],
       ["Company", field("company")],
       ["Start date", fmtDate(field("startDate"))],
       ["End date", fmtDate(field("endDate"))],
     ];
-    Object.keys(FILE_LABELS).forEach(function (key) {
+    var docs = Object.keys(FILE_LABELS).map(function (key) {
       var f = fileOf(key);
-      rows.push([FILE_LABELS[key], f ? f.name + " (" + (f.size / 1048576).toFixed(2) + " MB)" : "Missing"]);
+      return [FILE_LABELS[key], f ? f.name + " (" + (f.size / 1048576).toFixed(2) + " MB)" : "Missing"];
     });
-    reviewList.innerHTML = rows.map(function () { return "<div><dt></dt><dd></dd></div>"; }).join("");
-    reviewList.querySelectorAll("div").forEach(function (div, i) {
-      div.firstElementChild.textContent = rows[i][0];
-      div.lastElementChild.textContent = rows[i][1];
+    function group(title, rows, step) {
+      var inner = rows.map(function (r) {
+        return "<div><dt>" + escapeHtml(r[0]) + "</dt><dd>" + escapeHtml(r[1] || "—") + "</dd></div>";
+      }).join("");
+      return '<section class="review-group"><h3>' + escapeHtml(title) +
+        '<button type="button" data-edit="' + step + '">Edit</button></h3>' +
+        '<div class="review-rows">' + inner + "</div></section>";
+    }
+    reviewList.innerHTML = group("Personal", personal, 0) + group("School & placement", school, 1) + group("Documents", docs, 2);
+  }
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
     });
+  }
+  function updateDuration() {
+    var hint = document.getElementById("duration-hint");
+    if (!hint) return;
+    var s = field("startDate"), e = field("endDate");
+    if (s && e && new Date(e) > new Date(s)) {
+      var days = Math.round((new Date(e) - new Date(s)) / 86400000);
+      var weeks = Math.round(days / 7 * 10) / 10;
+      hint.hidden = false;
+      hint.textContent = "Duration: " + days + " days (~" + weeks + " weeks).";
+    } else if (s || e) {
+      hint.hidden = false;
+      hint.textContent = "Pick both dates — end must be after start.";
+    } else {
+      hint.hidden = true;
+      hint.textContent = "";
+    }
   }
 
   function showStep(n) {
     currentStep = Math.max(0, Math.min(TOTAL - 1, n));
     maxVisited = Math.max(maxVisited, currentStep);
     steps.forEach(function (s, i) { s.hidden = i !== currentStep; });
-    if (stepCount) stepCount.textContent = "Step " + (currentStep + 1) + " of " + TOTAL;
+    var NAMES = ["Personal", "School", "Documents", "Review"];
+    var ETAS = ["~2 min left", "~2 min left", "~1 min left", "Almost done"];
+    if (stepCount) stepCount.textContent = "Step " + (currentStep + 1) + " of " + TOTAL + " — " + (NAMES[currentStep] || "");
+    var eta = document.getElementById("step-eta");
+    if (eta) eta.textContent = ETAS[currentStep] || "";
+    var fill = document.getElementById("progress-fill");
+    if (fill) fill.style.width = ((currentStep + 1) / TOTAL * 100) + "%";
+    var navMeta = document.getElementById("nav-meta-text");
+    if (navMeta) navMeta.textContent = "Step " + (currentStep + 1) + " of " + TOTAL + " · " + (ETAS[currentStep] || "");
     progressBtns.forEach(function (b) {
       var t = Number(b.dataset.goto);
       var li = b.closest("li");
@@ -171,12 +226,41 @@
     if (nextBtn) nextBtn.hidden = last;
     if (submitBtnWizard) submitBtnWizard.hidden = !last;
     if (last) renderReview();
+    updateDuration();
     var h = steps[currentStep].querySelector("h2");
     if (h && h.focus) h.focus({ preventScroll: true });
-    steps[currentStep].scrollIntoView();
+    steps[currentStep].scrollIntoView({ block: "start" });
   }
   function getStep() { return currentStep; }
   function getTotal() { return TOTAL; }
+
+  // Review Edit buttons (delegated — review is re-rendered)
+  if (reviewList) reviewList.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-edit]");
+    if (!b) return;
+    clearErrors();
+    showStep(Number(b.getAttribute("data-edit")));
+  });
+
+  // Live valid ticks + duration updates on typing
+  form.addEventListener("input", function (e) {
+    var input = e.target;
+    if (!input || !input.name) return;
+    var wrap = document.getElementById("f-" + input.name);
+    if (!wrap) return;
+    var v = (input.value || "").trim();
+    var ok = v.length > 0;
+    if (input.name === "email") ok = /^\S+@\S+\.\S+$/.test(v);
+    if (input.name === "phone") ok = /^(0\d{9}|\+233\d{9}|233\d{9})$/.test(v.replace(/[\s-]/g, ""));
+    if (input.name === "fullName" || input.name === "company") ok = v.length >= 2;
+    wrap.classList.toggle("has-valid", ok);
+    if (ok) {
+      var msg = document.getElementById("err-" + input.name);
+      if (msg && !msg.hidden && msg.textContent) { /* keep until Continue */ }
+    }
+    saveDraftSoon();
+  });
+  form.addEventListener("change", function () { updateDuration(); saveDraftSoon(); });
 
   if (backBtn) backBtn.addEventListener("click", function () {
     clearErrors();
@@ -339,11 +423,124 @@
     }
   });
 
+  // "What is this?" helper — swap sub-copy with the tip on click
+  document.querySelectorAll(".fp-what").forEach(function (btn) {
+    var tip = btn.getAttribute("data-tip") || "";
+    btn.setAttribute("title", tip);
+    btn.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var picker = btn.closest(".file-picker");
+      var sub = picker ? picker.querySelector(".fp-sub") : null;
+      if (!sub) return;
+      if (sub.dataset.orig === undefined) sub.dataset.orig = sub.textContent;
+      var showing = sub.dataset.showing === "1";
+      sub.textContent = showing ? sub.dataset.orig : tip;
+      sub.dataset.showing = showing ? "0" : "1";
+      btn.textContent = showing ? "What is this?" : "Got it";
+    });
+  });
+
+  // --- Save draft to localStorage (text fields only, never files) ---
+  var DRAFT_KEY = "dvla-draft-v1";
+  var draftTimer = null;
+  function collectDraft() {
+    return {
+      fullName: field("fullName"), phone: field("phone"), email: field("email"),
+      school: field("school"), course: field("course"), company: field("company"),
+      startDate: field("startDate"), endDate: field("endDate"),
+      step: getStep(), at: Date.now(),
+    };
+  }
+  function saveDraftSoon() {
+    if (draftTimer) clearTimeout(draftTimer);
+    draftTimer = setTimeout(function () {
+      try {
+        var d = collectDraft();
+        if (d.fullName || d.phone || d.email || d.school) {
+          localStorage.setItem(DRAFT_KEY, JSON.stringify(d));
+          var chip = document.getElementById("draft-chip");
+          if (chip) chip.hidden = false;
+        }
+      } catch (err) { /* private mode */ }
+    }, 600);
+  }
+  function restoreDraft() {
+    try {
+      var raw = localStorage.getItem(DRAFT_KEY);
+      if (!raw) return false;
+      var d = JSON.parse(raw);
+      ["fullName", "phone", "email", "school", "course", "company"].forEach(function (n) {
+        var el = form.elements.namedItem(n);
+        if (el && d[n]) el.value = d[n];
+      });
+      if (d.startDate || d.endDate) {
+        var setVal = function (name, iso) {
+          var h = form.elements.namedItem(name);
+          if (h) h.value = iso || "";
+          var trigger = document.querySelector('.dp-trigger[data-target="' + name + '"]');
+          var label = trigger ? trigger.querySelector(".dp-value") : null;
+          if (label && window.__datepicker && window.__datepicker.friendly) {
+            if (iso) { label.textContent = window.__datepicker.friendly(iso); label.classList.remove("is-placeholder"); }
+            else { label.textContent = "Pick a date"; label.classList.add("is-placeholder"); }
+          }
+        };
+        setVal("startDate", d.startDate); setVal("endDate", d.endDate);
+      }
+      updateDuration();
+      return true;
+    } catch (err) { return false; }
+  }
+  function clearDraft() {
+    try { localStorage.removeItem(DRAFT_KEY); } catch (err) { /* noop */ }
+    var chip = document.getElementById("draft-chip");
+    if (chip) chip.hidden = true;
+  }
+  var saveBtn = document.getElementById("save-draft");
+  if (saveBtn) saveBtn.addEventListener("click", function () {
+    try {
+      localStorage.setItem(DRAFT_KEY, JSON.stringify(collectDraft()));
+      var chip = document.getElementById("draft-chip");
+      if (chip) chip.hidden = false;
+      if (status) { status.textContent = "Draft saved on this device."; status.className = "ok"; setTimeout(function () { if (status.className === "ok") { status.textContent = ""; status.className = ""; } }, 2500); }
+    } catch (err) { /* noop */ }
+  });
+  var resumeBtn = document.getElementById("resume-draft");
+  if (resumeBtn) resumeBtn.addEventListener("click", function () {
+    if (restoreDraft() && status) { status.textContent = "Draft restored."; status.className = "ok"; }
+  });
+  var clearDraftBtn = document.getElementById("clear-draft");
+  if (clearDraftBtn) clearDraftBtn.addEventListener("click", clearDraft);
+  try {
+    if (localStorage.getItem(DRAFT_KEY)) {
+      var chip0 = document.getElementById("draft-chip");
+      if (chip0) chip0.hidden = false;
+      restoreDraft();
+    }
+  } catch (err) { /* noop */ }
+
+  // Copy reference button
+  var copyBtn = document.getElementById("copy-ref");
+  if (copyBtn) copyBtn.addEventListener("click", function () {
+    var ref = document.getElementById("success-ref");
+    var txt = ref ? ref.textContent : "";
+    function done() { copyBtn.textContent = "Copied!"; setTimeout(function () { copyBtn.textContent = "Copy"; }, 2000); }
+    if (navigator.clipboard && txt) navigator.clipboard.writeText(txt).then(done, done);
+    else {
+      try {
+        var ta = document.createElement("textarea");
+        ta.value = txt; document.body.appendChild(ta); ta.select();
+        document.execCommand("copy"); document.body.removeChild(ta);
+      } catch (err) { /* noop */ }
+      done();
+    }
+  });
+
   window.__wizard = {
     field: field, fileOf: fileOf, stepErrors: stepErrors,
     showErrors: showErrors, clearErrors: clearErrors,
     showStep: showStep, getStep: getStep, getTotal: getTotal,
     clearAllPickers: clearAllPickers, MAX_FILE_MB: MAX_FILE_MB,
+    updateDuration: updateDuration, clearDraft: clearDraft, restoreDraft: restoreDraft,
   };
   window.__wizardReady = true;
 })();

@@ -96,7 +96,7 @@
         label.textContent = friendly(iso);
         label.classList.remove("is-placeholder");
       } else {
-        label.textContent = "DD / MM / YYYY";
+        label.textContent = "Pick a date";
         label.classList.add("is-placeholder");
       }
     }
@@ -104,6 +104,9 @@
     if (name === "startDate" && iso) {
       var e = hiddenInput("endDate");
       if (e && e.value && e.value <= iso) setValue("endDate", "");
+    }
+    if (window.__wizard && window.__wizard.updateDuration) {
+      try { window.__wizard.updateDuration(); } catch (err) { /* noop */ }
     }
   }
 

@@ -76,17 +76,29 @@ form?.addEventListener("submit", async (e) => {
   if (w && !w.showErrors([...w.stepErrors(0), ...w.stepErrors(1), ...w.stepErrors(2)])) return;
 
   const submitBtn = form.querySelector('button[type="submit"]');
+  const ctaLabel = submitBtn ? submitBtn.querySelector(".cta-label") : null;
+  const note = document.getElementById("file-progress-note");
   submitBtn.disabled = true;
+  submitBtn.classList.add("loading");
+  if (ctaLabel) ctaLabel.textContent = "Uploading…";
   status.textContent = "Uploading documents…";
   status.className = "";
   if (progress) { progress.hidden = false; progress.value = 10; }
+  if (note) { note.hidden = false; note.textContent = "Uploading 1 of 3: school letter…"; }
 
   try {
-    const [schoolLetterUrl, cvUrl, ghanaCardUrl] = await Promise.all([
-      uploadToCloudinary(data.get("schoolLetter")),
-      uploadToCloudinary(data.get("cv")),
-      uploadToCloudinary(data.get("ghanaCard")),
-    ]);
+    const schoolLetterFile = data.get("schoolLetter");
+    const cvFile = data.get("cv");
+    const ghanaCardFile = data.get("ghanaCard");
+    if (note) note.textContent = "Uploading 1 of 3: school letter…";
+    if (progress) progress.value = 20;
+    const schoolLetterUrl = await uploadToCloudinary(schoolLetterFile);
+    if (note) note.textContent = "Uploading 2 of 3: CV…";
+    if (progress) progress.value = 45;
+    const cvUrl = await uploadToCloudinary(cvFile);
+    if (note) note.textContent = "Uploading 3 of 3: Ghana Card…";
+    if (progress) progress.value = 65;
+    const ghanaCardUrl = await uploadToCloudinary(ghanaCardFile);
     if (progress) progress.value = 70;
     status.textContent = "Saving application…";
 
@@ -104,10 +116,14 @@ form?.addEventListener("submit", async (e) => {
     // on submit. Submission is saved above; success panel follows.
 
     if (progress) progress.value = 100;
+    if (note) { note.textContent = "Done — saving complete."; }
     if (w) w.clearAllPickers();
     form.reset();
-    if (w) w.clearErrors();
+    if (w) { w.clearErrors(); if (w.clearDraft) w.clearDraft(); }
+    var consent = document.getElementById("consent-check");
+    if (consent) consent.checked = false;
     if (progress) progress.hidden = true;
+    if (note) setTimeout(function () { note.hidden = true; note.textContent = ""; }, 2000);
     const panel = document.getElementById("success-panel");
     const ref = document.getElementById("success-ref");
     if (ref) ref.textContent = reference;
@@ -120,8 +136,11 @@ form?.addEventListener("submit", async (e) => {
     console.error(err);
     status.textContent = `Submit failed: ${err.message}. Try again.`;
     status.className = "error";
+    if (note) { note.textContent = "Upload paused — check connection and try again."; }
   } finally {
     submitBtn.disabled = false;
+    submitBtn.classList.remove("loading");
+    if (ctaLabel) ctaLabel.textContent = "Submit Application";
     if (progress) setTimeout(() => { progress.hidden = true; progress.value = 0; }, 1500);
   }
 });
