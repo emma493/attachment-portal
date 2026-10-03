@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Admin Dashboard — DVLA Attachment Portal</title>
+  <link rel="icon" type="image/jpeg" href="assets/dvla-logo.jpg" />
+  <link rel="apple-touch-icon" href="assets/dvla-logo.jpg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="css/style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "firebase/app": "https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js",
+        "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js",
+        "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js",
+        "firebase/analytics": "https://www.gstatic.com/firebasejs/10.12.5/firebase-analytics.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <div class="top-strip">
+    <div class="wrap">
+      <span>A service of the Driver &amp; Vehicle Licensing Authority, Ghana</span>
+      <span class="top-contact">Call Center: 030 276 2449</span>
+    </div>
+  </div>
+  <header class="site-header">
+    <div class="wrap header-inner">
+      <a class="brand" href="index.html">
+        <img src="assets/dvla-logo.jpg" alt="DVLA Ghana logo" width="56" height="56" />
+        <span class="brand-text">
+          <strong>DVLA Ghana</strong>
+          <span>Driver &amp; Vehicle Licensing Authority</span>
+        </span>
+      </a>
+      <nav class="main-nav" aria-label="Main navigation" id="main-nav">
+        <a href="index.html">Apply</a>
+        <a href="/sysadmin" class="active">Admin Login</a>
+      </nav>
+      <button class="nav-toggle" aria-expanded="false" aria-controls="main-nav" aria-label="Open menu">
+        <span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>
+      </button>
+    </div>
+  </header>
+  <div class="nav-scrim" hidden></div>
+  <section class="hero hero-slim">
+    <div class="wrap">
+      <p class="hero-kicker">Staff only</p>
+      <h1>Admin Dashboard</h1>
+    </div>
+  </section>
+  <main class="wrap admin-main">
+    <section id="login-section" class="card" aria-labelledby="login-h">
+      <h2 id="login-h">Staff access</h2>
+      <p class="hint">Sign in with your DVLA staff account — or create it here once, then use Sign in afterwards.</p>
+      <div class="auth-tabs" role="tablist" aria-label="Staff sign in or sign up">
+        <button type="button" id="tab-login" role="tab" aria-selected="true" aria-controls="login-form" class="active">Sign in</button>
+        <button type="button" id="tab-signup" role="tab" aria-selected="false" aria-controls="signup-form">Sign up</button>
+      </div>
+      <p id="auth-offline-note" class="field-error" role="alert" hidden>Sign-in is not responding — this page needs internet access for login (Firebase). Do not open it as a downloaded file; use the deployed site or a local server instead.</p>
+      <form id="login-form" novalidate>
+        <label>Email <input name="email" type="email" required autocomplete="username" /></label>
+        <label>Password <input name="password" type="password" required autocomplete="current-password" /></label>
+        <p id="login-error" class="field-error" role="alert" hidden></p>
+        <button type="submit" class="cta" id="login-submit">Log in</button>
+      </form>
+      <form id="signup-form" novalidate hidden>
+        <label>Email <input name="email" type="email" required autocomplete="username" /></label>
+        <label>Password <input name="password" type="password" required autocomplete="new-password" minlength="6" /></label>
+        <label>Confirm password <input name="confirm" type="password" required autocomplete="new-password" minlength="6" /></label>
+        <p id="signup-error" class="field-error" role="alert" hidden></p>
+        <button type="submit" class="cta" id="signup-submit">Create staff account</button>
+        <p class="hint">After creating your account, disable sign-up (see note in <code>js/sysadmin.js</code>) so strangers cannot grant themselves access.</p>
+      </form>
+    </section>
+    <section id="dashboard-section" hidden aria-labelledby="dash-h">
+      <div class="card dash-bar">
+        <div>
+          <h2 id="dash-h">Submissions</h2>
+          <p class="hint" id="admin-user"></p>
+        </div>
+        <div class="dash-actions">
+          <button type="button" id="refresh-btn" class="ghost-btn">Refresh</button>
+          <button type="button" id="signout-btn" class="ghost-btn">Sign out</button>
+        </div>
+      </div>
+      <div class="stats" role="status" aria-label="Submission totals">
+        <div class="stat"><span id="stat-total">0</span><small>Total</small></div>
+        <div class="stat stat-pending"><span id="stat-pending">0</span><small>Pending</small></div>
+        <div class="stat stat-approved"><span id="stat-approved">0</span><small>Approved</small></div>
+        <div class="stat stat-rejected"><span id="stat-rejected">0</span><small>Rejected</small></div>
+      </div>
+      <div class="card">
+        <div class="filters">
+          <select id="status-filter" aria-label="Filter by status">
+            <option value="">All statuses</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+          <input id="search" type="search" placeholder="Search name / school / company / email" aria-label="Search submissions" />
+        </div>
+        <p id="admin-status" role="status"></p>
+        <p id="list-count" class="hint"></p>
+        <div id="submissions-list"></div>
+      </div>
+      <div class="card" id="detail-card" hidden>
+        <div id="submission-detail"></div>
+      </div>
+    </section>
+  </main>
+  <footer class="site-footer">
+    <div class="footer-base">
+      <div class="wrap">&copy; 2026 Driver and Vehicle Licensing Authority. All rights reserved. | Privacy Policy</div>
+    </div>
+  </footer>
+  <script type="module" src="js/sysadmin.js"></script>
+  <script src="js/nav.js" defer></script>
+</body>
+</html>

@@ -9,7 +9,7 @@ Flow: Student opens site -> fills form -> uploads letters, CV, ID -> submits
 -> Admin sees it in dashboard -> Approves / Rejects -> Student gets email.
 
 ## 2. Hosting & Stack (locked)
-- Website: Netlify (static frontend: student form + /admin)
+- Website: Netlify (static frontend: student form + /sysadmin, no public link)
 - Rest: Firebase Spark free account (no card, no Blaze)
 - Database: Cloud Firestore (Spark free: 1GB stored, 50k reads/day, 20k writes/day)
 - Auth: Firebase Auth email/password (admin login only, students anonymous)
@@ -93,7 +93,7 @@ Collections for mail:
   or Brevo/Mailjet Starter ($9/mo, no daily cap) without rewrite.
 - Rejected: Gmail SMTP (500/day but spam-prone, blocks, no tracking).
 
-## 7. Admin Dashboard (`/admin`)
+## 7. Admin Dashboard (`/sysadmin` — hidden, no public link)
 - Firebase Auth email/password login (allowlist only)
 - List all submissions: filter pending/approved/rejected,
   search name/school/company, sort by date

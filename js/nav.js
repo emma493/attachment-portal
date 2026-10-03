@@ -1,4 +1,4 @@
-// Shared mobile drawer nav (index.html + admin.html). No dependencies.
+// Shared mobile drawer nav (index.html + sysadmin.html). No dependencies.
 (function () {
   var toggle = document.querySelector(".nav-toggle");
   var nav = document.getElementById("main-nav");
@@ -33,4 +33,57 @@
   nav.addEventListener("click", function (e) {
     if (e.target.closest("a") && isOpen()) close();
   });
+})();
+
+// Staff Sign in / Sign up tabs (sysadmin.html). Classic script on purpose:
+// the Firebase module can fail to boot (offline, blocked CDN, file://),
+// and the tabs must still switch. Whichever script runs first wires the
+// buttons (guarded by window.__adminTabsWired); both share window.__adminTab.
+(function () {
+  var tabLogin = document.getElementById("tab-login");
+  var tabSignup = document.getElementById("tab-signup");
+  if (!tabLogin || !tabSignup) return;
+  var loginForm = document.getElementById("login-form");
+  var signupForm = document.getElementById("signup-form");
+
+  function show(which) {
+    var login = which !== "signup";
+    if (loginForm) loginForm.hidden = !login;
+    if (signupForm) signupForm.hidden = login;
+    tabLogin.classList.toggle("active", login);
+    tabSignup.classList.toggle("active", !login);
+    tabLogin.setAttribute("aria-selected", String(login));
+    tabSignup.setAttribute("aria-selected", String(!login));
+  }
+  if (!window.__adminTab) window.__adminTab = show;
+
+  if (!window.__adminTabsWired) {
+    window.__adminTabsWired = true;
+    tabLogin.addEventListener("click", function () { show("login"); });
+    tabSignup.addEventListener("click", function () { show("signup"); });
+  }
+
+  // Fallback: if the Firebase module never boots, stop the forms from
+  // doing a dead page reload and explain instead.
+  function offlineGuard(formId) {
+    var form = document.getElementById(formId);
+    if (!form || form.__offlineGuard) return;
+    form.__offlineGuard = true;
+    form.addEventListener("submit", function (e) {
+      if (!window.__sysadminReady) {
+        e.preventDefault();
+        var note = document.getElementById("auth-offline-note");
+        if (note) note.hidden = false;
+      }
+    });
+  }
+  offlineGuard("login-form");
+  offlineGuard("signup-form");
+
+  setTimeout(function () {
+    if (!window.__sysadminReady) {
+      var note = document.getElementById("auth-offline-note");
+      if (note) note.hidden = false;
+    }
+  }, 5000);
 })();

@@ -3,6 +3,19 @@
   functions = "netlify/functions"
 
 [[redirects]]
-  from = "/admin"
-  to = "/admin.html"
+  from = "/sysadmin"
+  to = "/sysadmin.html"
   status = 200
+
+# Trap common bot scans for /admin -> send back home
+[[redirects]]
+  from = "/admin"
+  to = "/"
+  status = 301
+  force = true
+
+[[redirects]]
+  from = "/admin.html"
+  to = "/"
+  status = 301
+  force = true
