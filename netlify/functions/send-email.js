@@ -15,7 +15,10 @@ export async function handler(event) {
       // TEST-ONLY: Gmail SMTP, 500/day, spam-prone. Use App Password, not login password.
       const user = process.env.GMAIL_USER;
       const pass = (process.env.GMAIL_APP_PASSWORD || "").replace(/\s+/g, "");
-      if (!user || !pass) return { statusCode: 500, body: "Missing GMAIL_USER / GMAIL_APP_PASSWORD" };
+      if (!user || !pass) {
+        console.error("[send-email] gmail selected but GMAIL_USER / GMAIL_APP_PASSWORD missing");
+        return { statusCode: 500, body: "Missing GMAIL_USER / GMAIL_APP_PASSWORD" };
+      }
       const nodemailer = await import("nodemailer");
       const transporter = nodemailer.createTransport({
         host: "smtp.gmail.com",
@@ -49,8 +52,10 @@ export async function handler(event) {
       }),
     });
     const body = await res.text();
+    if (!res.ok) console.error(`[send-email] brevo ${res.status}: ${body.slice(0, 300)}`);
     return { statusCode: res.ok ? 200 : 502, body };
   } catch (err) {
+    console.error("[send-email]", err?.message || err);
     return { statusCode: 500, body: String(err?.message || err) };
   }
 }

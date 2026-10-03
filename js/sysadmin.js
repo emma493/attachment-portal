@@ -368,27 +368,43 @@ async function decide(s, nextStatus, approveBtn, rejectBtn) {
       to: s.email, template: nextStatus, submissionId: s.id,
       status: "queued", attempts: 0, createdAt: serverTimestamp(),
     }).catch(() => {});
-    fetch("/.netlify/functions/send-email", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        to: s.email,
-        subject: nextStatus === "approved"
-          ? "Your attachment application was approved"
-          : "Update on your attachment application",
-        html: nextStatus === "approved"
-          ? `<p>Hi ${s.fullName},</p><p>Your application to <strong>${s.company}</strong> was <strong>approved</strong>.</p><p>${note}</p>`
-          : `<p>Hi ${s.fullName},</p><p>Your application to <strong>${s.company}</strong> was <strong>not approved</strong> at this time.</p><p>${note}</p>`,
-        submissionId: s.id,
-      }),
-    }).catch(() => {});
+    // Decision email: awaited so failures are visible (status already saved).
+    let emailFailed = false;
+    try {
+      const mailRes = await fetch("/.netlify/functions/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: s.email,
+          subject: nextStatus === "approved"
+            ? "Your attachment application was approved"
+            : "Update on your attachment application",
+          html: nextStatus === "approved"
+            ? `<p>Hi ${s.fullName},</p><p>Your application to <strong>${s.company}</strong> was <strong>approved</strong>.</p><p>${note}</p>`
+            : `<p>Hi ${s.fullName},</p><p>Your application to <strong>${s.company}</strong> was <strong>not approved</strong> at this time.</p><p>${note}</p>`,
+          submissionId: s.id,
+        }),
+      });
+      if (!mailRes.ok) {
+        emailFailed = true;
+        console.error("Decision email failed:", mailRes.status, await mailRes.text().catch(() => ""));
+      }
+    } catch (mailErr) {
+      emailFailed = true;
+      console.error("Decision email failed:", mailErr);
+    }
 
     s.status = nextStatus;
     s.adminNote = note;
     updateStats();
     renderList();
     renderDetail(s.id);
-    setStatus(`Application ${nextStatus}.`, "ok");
+    setStatus(
+      emailFailed
+        ? `Application ${nextStatus}, but the decision email failed to send.`
+        : `Application ${nextStatus}.`,
+      emailFailed ? "error" : "ok",
+    );
   } catch (err) {
     console.error(err);
     setStatus(`Save failed: ${err?.message || err}`, "error");
