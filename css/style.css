@@ -619,8 +619,8 @@ textarea {
 /* Collapsed rail: icon-only */
 .admin-shell.rail-collapsed { grid-template-columns: 78px minmax(0, 1fr); }
 .admin-shell.rail-collapsed .side-label { display: none; }
-.admin-shell.rail-collapsed .side-brand-row { justify-content: center; }
-.admin-shell.rail-collapsed .rail-toggle { display: none; }
+.admin-shell.rail-collapsed .side-brand-row { justify-content: center; flex-direction: column; }
+.admin-shell.rail-collapsed .side-brand { justify-content: center; }
 .admin-shell.rail-collapsed .side-nav button,
 .admin-shell.rail-collapsed .side-link { justify-content: center; padding-left: 0; padding-right: 0; }
 .admin-shell.rail-collapsed .side-user { display: none; }

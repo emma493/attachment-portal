@@ -202,8 +202,10 @@ async function initAuthView() {
   }
   const setup = await readSetup();
   if (setup === null) {
+    // Setup state unreadable (offline, or new firestore.rules not published
+    // yet). Stay silent here — Auth itself may still work, and any real
+    // failure is reported inline on submit instead of flashing a false alarm.
     showAuth("login");
-    showFieldError(loginError, "Sign-in isn't available right now — check your connection and reload the page.");
     return;
   }
   setupDone = setup.done;
@@ -255,6 +257,9 @@ async function isOurAdmin(user) {
 
 function showDashboard(user) {
   hideAll();
+  // Never carry stale auth errors into a successful session.
+  showFieldError(loginError, "");
+  showFieldError(signupError, "");
   dashSection.hidden = false;
   document.body.classList.add("authed");
   if (adminUser) adminUser.textContent = user?.email ? `Signed in as ${user.email}` : "";
