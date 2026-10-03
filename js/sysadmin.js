@@ -133,11 +133,12 @@ function fmtDate(s) {
 // ---------- side menu / views ----------
 
 function setMenuEnabled(on) {
-  document.querySelectorAll("button[data-view]").forEach((b) => {
+  document.querySelectorAll("button[data-view], button[data-status-link]").forEach((b) => {
     b.disabled = !on;
   });
   if (signOutBtn) signOutBtn.hidden = !on;
   if (signOutBtnM) signOutBtnM.hidden = !on;
+  if (!on) syncFilterNav();
 }
 
 function showView(name) {
@@ -156,12 +157,35 @@ function showView(name) {
     const h = "#/" + name;
     if (location.hash !== h) history.replaceState(null, "", h);
   } catch { /* ignore */ }
+  syncFilterNav();
 }
 
 document.querySelectorAll("button[data-view]").forEach((b) => {
   b.addEventListener("click", () => {
     if (dashSection.hidden) return; // menu is inert until signed in
     showView(b.dataset.view);
+  });
+});
+
+// Side-menu status shortcuts: All / Pending / Approved / Rejected.
+// They open the Submissions view with the matching filter applied.
+function syncFilterNav() {
+  const active = currentView === "submissions" && !dashSection.hidden
+    ? (statusFilter?.value || "")
+    : null;
+  document.querySelectorAll("button[data-status-link]").forEach((b) => {
+    if (active !== null && (b.dataset.statusLink || "") === active) b.setAttribute("aria-current", "page");
+    else b.removeAttribute("aria-current");
+  });
+}
+
+document.querySelectorAll("button[data-status-link]").forEach((b) => {
+  b.addEventListener("click", () => {
+    if (dashSection.hidden) return;
+    if (statusFilter) statusFilter.value = b.dataset.statusLink || "";
+    showView("submissions");
+    renderList();
+    syncFilterNav();
   });
 });
 
@@ -482,6 +506,14 @@ function updateStats() {
   if (statPending) statPending.textContent = String(pending);
   if (statApproved) statApproved.textContent = String(approved);
   if (statRejected) statRejected.textContent = String(rejected);
+  const setCount = (id, v) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = String(v);
+  };
+  setCount("count-all", total);
+  setCount("count-pending", pending);
+  setCount("count-approved", approved);
+  setCount("count-rejected", rejected);
 }
 
 function filteredDocs() {
@@ -843,7 +875,7 @@ async function decide(s, nextStatus, approveBtn, rejectBtn) {
 }
 
 refreshBtn?.addEventListener("click", () => loadSubmissions());
-statusFilter?.addEventListener("change", renderList);
+statusFilter?.addEventListener("change", () => { renderList(); syncFilterNav(); });
 searchInput?.addEventListener("input", renderList);
 
 document.getElementById("bulk-clear")?.addEventListener("click", () => {

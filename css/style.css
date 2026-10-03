@@ -637,6 +637,14 @@ textarea {
 .side-nav button:hover, .side-link:hover { background: var(--bg); color: var(--navy); }
 .side-nav button[aria-current="page"] { background: var(--navy-soft); border-left-color: var(--gold); color: var(--navy); }
 .side-nav button:disabled { opacity: 0.45; cursor: not-allowed; }
+.side-section-label { margin: 0.4rem 0 -0.4rem; padding: 0 0.9rem; font-size: 0.72rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); }
+.count-pill {
+  margin-left: auto; flex: none; min-width: 1.6rem; height: 1.6rem;
+  display: inline-grid; place-items: center; padding: 0 0.45rem;
+  background: var(--bg); border: 1px solid var(--line); border-radius: 999px;
+  font-size: 0.75rem; font-weight: 800; color: var(--navy);
+  font-variant-numeric: tabular-nums;
+}
 .side-foot { margin-top: auto; display: grid; gap: 0.5rem; border-top: 1px solid var(--line); padding-top: 1rem; }
 .side-user { margin: 0; font-size: 0.82rem; color: var(--muted); overflow-wrap: anywhere; padding: 0 0.4rem; white-space: normal; }
 
