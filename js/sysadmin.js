@@ -113,7 +113,7 @@ function filteredDocs() {
   return allDocs.filter((s) => {
     if (status && (s.status || "pending") !== status) return false;
     if (!term) return true;
-    return [s.fullName, s.school, s.company, s.email, s.phone]
+    return [s.fullName, s.school, s.company, s.email, s.phone, s.reference]
       .some((v) => (v || "").toString().toLowerCase().includes(term));
   });
 }
@@ -298,7 +298,7 @@ function renderDetail(id) {
 
   const ref = document.createElement("p");
   ref.className = "hint";
-  ref.textContent = `Ref ${s.id} · Submitted ${fmtDate(s)}`;
+  ref.textContent = `Ref ${s.reference || s.id} · Submitted ${fmtDate(s)}`;
 
   const dl = document.createElement("dl");
   dl.className = "detail-grid";

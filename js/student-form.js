@@ -25,6 +25,14 @@ function wizard() {
   return window.__wizard || null;
 }
 
+// Human-readable reference: digits only, built from local date + time
+// (YYYYMMDDHHMMSSmmm). Milliseconds keep same-second submissions unique.
+function makeReference(now = new Date()) {
+  const p = (n, len = 2) => String(n).padStart(len, "0");
+  return `${now.getFullYear()}${p(now.getMonth() + 1)}${p(now.getDate())}` +
+    `${p(now.getHours())}${p(now.getMinutes())}${p(now.getSeconds())}${p(now.getMilliseconds(), 3)}`;
+}
+
 window.__submitReady = true;
 
 form?.addEventListener("submit", async (e) => {
@@ -69,8 +77,10 @@ form?.addEventListener("submit", async (e) => {
     if (progress) progress.value = 70;
     status.textContent = "Saving application…";
 
+    const reference = makeReference();
     const docRef = await addDoc(collection(db, "submissions"), {
       fullName, school, course, phone, email, company, startDate, endDate,
+      reference,
       files: { schoolLetterUrl, cvUrl, ghanaCardUrl },
       status: "pending",
       adminNote: "",
@@ -96,7 +106,7 @@ form?.addEventListener("submit", async (e) => {
         body: JSON.stringify({
           to: email,
           subject: "We received your attachment application",
-          html: `<p>Hi ${fullName},</p><p>We received your application to <strong>${company}</strong>. Reference: <code>${docRef.id}</code>. We will email you once reviewed.</p>`,
+          html: `<p>Hi ${fullName},</p><p>We received your application to <strong>${company}</strong>. Reference: <code>${reference}</code>. We will email you once reviewed.</p>`,
           submissionId: docRef.id,
         }),
       });
@@ -116,7 +126,7 @@ form?.addEventListener("submit", async (e) => {
     if (progress) progress.hidden = true;
     const panel = document.getElementById("success-panel");
     const ref = document.getElementById("success-ref");
-    if (ref) ref.textContent = docRef.id;
+    if (ref) ref.textContent = reference;
     form.hidden = true;
     if (panel) {
       panel.hidden = false;

@@ -50,6 +50,7 @@ Collection: `submissions`
   course: string,
   phone: string,
   email: string,
+  reference: string,        // digits from submit date+time (YYYYMMDDHHMMSSmmm), shown to student
   company: string,          // manually typed
   startDate: string (ISO),
   endDate: string (ISO),
