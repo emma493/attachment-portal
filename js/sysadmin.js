@@ -5,7 +5,7 @@ import {
   onAuthStateChanged,
   signOut,
   updatePassword,
-  updateEmail,
+  verifyBeforeUpdateEmail,
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
@@ -497,21 +497,18 @@ emailForm?.addEventListener("submit", async (e) => {
   try {
     const cred = EmailAuthProvider.credential(user.email, currentPw);
     await reauthenticateWithCredential(user, cred);
-    await updateEmail(user, newEmail);
-    try {
-      await updateDoc(adminDocRef(user.uid), { email: newEmail });
-    } catch { /* best effort — read path is UID-gated */ }
-    try {
-      await updateDoc(SETUP_REF(), { adminEmail: newEmail });
-    } catch { /* needs updated firestore.rules; Console edit otherwise */ }
-    emailForm.reset();
+    // Firebase now requires verification before an email change.
+    // Direct updateEmail() throws auth/operation-not-allowed, so send a
+    // verification link to the NEW address instead. Auth keeps the old
+    // email until that link is clicked.
+    await verifyBeforeUpdateEmail(user, newEmail);
+    // Deferred Firestore sync: admins/{uid}.email and config/setup.adminEmail
+    // are updated on next sign-in (ensureAdminDoc) once Auth actually flips.
+    // Writing newEmail now would diverge from user.email while pending.
     if (emailOk) {
-      emailOk.textContent = "Email updated. Use it next time you sign in.";
+      emailOk.textContent = `Verification sent to ${newEmail}. Click the link in that inbox, then sign out and sign back in with the new email. Your current email stays active until then.`;
       emailOk.hidden = false;
     }
-    if (adminUser) adminUser.textContent = `Signed in as ${newEmail}`;
-    if (sideUser) sideUser.textContent = newEmail;
-    if (secEmail) secEmail.textContent = newEmail;
   } catch (err) {
     const code = err?.code || "";
     if (code.includes("wrong-password") || code.includes("invalid-credential")) {
@@ -522,6 +519,10 @@ emailForm?.addEventListener("submit", async (e) => {
       showFieldError(emailError, "Enter a valid email address.");
     } else if (code.includes("requires-recent-login")) {
       showFieldError(emailError, "For security, sign out and sign in again, then retry.");
+    } else if (code.includes("operation-not-allowed")) {
+      showFieldError(emailError, "This project requires email verification. Try again — a verification link will be sent to the new address. If it persists, check Firebase Console → Authentication → Settings.");
+    } else if (code.includes("too-many-requests")) {
+      showFieldError(emailError, "Too many attempts — try again later.");
     } else {
       showFieldError(emailError, err?.message || "Could not update email.");
     }
