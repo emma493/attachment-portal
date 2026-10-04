@@ -509,6 +509,8 @@ function updateStats() {
   const setCount = (id, v) => {
     const el = document.getElementById(id);
     if (el) el.textContent = String(v);
+    const m = document.getElementById(`${id}-m`);
+    if (m) m.textContent = String(v);
   };
   setCount("count-all", total);
   setCount("count-pending", pending);

@@ -119,15 +119,21 @@
 
     <div class="admin-col">
       <div class="mobile-nav" aria-label="Admin sections">
-        <span class="mobile-brand">DVLA Admin</span>
-        <button type="button" data-view="overview" aria-current="page">Overview</button>
-        <button type="button" data-view="submissions">Submissions</button>
-        <button type="button" data-view="security">Security</button>
-        <button type="button" data-status-link="">All</button>
-        <button type="button" data-status-link="pending">Pending</button>
-        <button type="button" data-status-link="approved">Approved</button>
-        <button type="button" data-status-link="rejected">Rejected</button>
-        <button type="button" data-action="signout" id="signout-btn-m" hidden>Sign out</button>
+        <div class="mn-top">
+          <span class="mobile-brand">DVLA Admin</span>
+          <button type="button" class="mn-signout" data-action="signout" id="signout-btn-m" hidden>Sign out</button>
+        </div>
+        <div class="mn-views" role="group" aria-label="Views">
+          <button type="button" data-view="overview" aria-current="page">Overview</button>
+          <button type="button" data-view="submissions">Submissions</button>
+          <button type="button" data-view="security">Security</button>
+        </div>
+        <div class="mn-status" role="group" aria-label="Filter by status">
+          <button type="button" data-status-link="">All <span class="mn-count" id="count-all-m">0</span></button>
+          <button type="button" data-status-link="pending">Pending <span class="mn-count" id="count-pending-m">0</span></button>
+          <button type="button" data-status-link="approved">Approved <span class="mn-count" id="count-approved-m">0</span></button>
+          <button type="button" data-status-link="rejected">Rejected <span class="mn-count" id="count-rejected-m">0</span></button>
+        </div>
       </div>
 
       <header class="admin-topbar">
