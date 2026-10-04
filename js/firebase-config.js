@@ -1,5 +1,5 @@
 // Firebase web config — from Firebase Console > Project settings > Your apps.
-// Project: attachment-portal-f4285. API key is public for web SDK (enforced by
+// Project: inter-72954 (production). API key is public for web SDK (enforced by
 // Firebase Auth / Firestore rules, not by hiding the key).
 // Override in production via Netlify snippet:
 // window.__FIREBASE_CONFIG__ = {...}; window.__CLOUDINARY_CONFIG__ = {...};
@@ -14,13 +14,13 @@ const envCloudinary =
   (typeof window !== "undefined" && window.__CLOUDINARY_CONFIG__) || {};
 
 export const firebaseConfig = {
-  apiKey: envConfig.apiKey || "AIzaSyBZMLcuLR9_CDiz3QEYX3oxf0JaW1uDgKY",
-  authDomain: envConfig.authDomain || "attachment-portal-f4285.firebaseapp.com",
-  projectId: envConfig.projectId || "attachment-portal-f4285",
-  storageBucket: envConfig.storageBucket || "attachment-portal-f4285.firebasestorage.app",
-  messagingSenderId: envConfig.messagingSenderId || "138039614207",
-  appId: envConfig.appId || "1:138039614207:web:6121d3534e9fd87fcc4aca",
-  measurementId: envConfig.measurementId || "G-B59JCKWFHP",
+  apiKey: envConfig.apiKey || "AIzaSyA8kh61kiL2FhSy2OlXHk_ffGekcMjd9RM",
+  authDomain: envConfig.authDomain || "inter-72954.firebaseapp.com",
+  projectId: envConfig.projectId || "inter-72954",
+  storageBucket: envConfig.storageBucket || "inter-72954.firebasestorage.app",
+  messagingSenderId: envConfig.messagingSenderId || "699016490794",
+  appId: envConfig.appId || "1:699016490794:web:587f76d218caad1bffb853",
+  measurementId: envConfig.measurementId || "G-3J7DB6CTMN",
 };
 export const cloudinaryConfig = {
   cloudName: envCloudinary.cloudName || "gpsslmw7",

@@ -5,7 +5,6 @@ import {
   onAuthStateChanged,
   signOut,
   updatePassword,
-  verifyBeforeUpdateEmail,
   EmailAuthProvider,
   reauthenticateWithCredential,
 } from "firebase/auth";
@@ -60,10 +59,6 @@ const passwordForm = document.getElementById("password-form");
 const passwordError = document.getElementById("password-error");
 const passwordOk = document.getElementById("password-ok");
 const passwordSubmit = document.getElementById("password-submit");
-const emailForm = document.getElementById("email-form");
-const emailError = document.getElementById("email-error");
-const emailOk = document.getElementById("email-ok");
-const emailSubmit = document.getElementById("email-submit");
 
 let allDocs = [];
 let selectedId = null;
@@ -468,67 +463,6 @@ signOutBtn?.addEventListener("click", async () => {
 signOutBtnM?.addEventListener("click", async () => {
   if (!auth) return;
   await signOut(auth).catch(() => {});
-});
-
-// ---------- email change ----------
-
-emailForm?.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  showFieldError(emailError, "");
-  if (emailOk) emailOk.hidden = true;
-  const user = auth?.currentUser;
-  if (!user) return;
-  const fd = new FormData(emailForm);
-  const newEmail = (fd.get("email") || "").toString().trim();
-  const currentPw = (fd.get("currentPassword") || "").toString();
-  if (!/^\S+@\S+\.\S+$/.test(newEmail)) {
-    showFieldError(emailError, "Enter a valid email address.");
-    return;
-  }
-  if (!currentPw) {
-    showFieldError(emailError, "Enter your current password to confirm.");
-    return;
-  }
-  if (user.email && newEmail.toLowerCase() === user.email.toLowerCase()) {
-    showFieldError(emailError, "That is already the current email.");
-    return;
-  }
-  emailSubmit.disabled = true;
-  try {
-    const cred = EmailAuthProvider.credential(user.email, currentPw);
-    await reauthenticateWithCredential(user, cred);
-    // Firebase now requires verification before an email change.
-    // Direct updateEmail() throws auth/operation-not-allowed, so send a
-    // verification link to the NEW address instead. Auth keeps the old
-    // email until that link is clicked.
-    await verifyBeforeUpdateEmail(user, newEmail);
-    // Deferred Firestore sync: admins/{uid}.email and config/setup.adminEmail
-    // are updated on next sign-in (ensureAdminDoc) once Auth actually flips.
-    // Writing newEmail now would diverge from user.email while pending.
-    if (emailOk) {
-      emailOk.textContent = `Verification sent to ${newEmail}. Click the link in that inbox, then sign out and sign back in with the new email. Your current email stays active until then.`;
-      emailOk.hidden = false;
-    }
-  } catch (err) {
-    const code = err?.code || "";
-    if (code.includes("wrong-password") || code.includes("invalid-credential")) {
-      showFieldError(emailError, "Current password is incorrect.");
-    } else if (code.includes("email-already-in-use")) {
-      showFieldError(emailError, "That email is already in use.");
-    } else if (code.includes("invalid-email")) {
-      showFieldError(emailError, "Enter a valid email address.");
-    } else if (code.includes("requires-recent-login")) {
-      showFieldError(emailError, "For security, sign out and sign in again, then retry.");
-    } else if (code.includes("operation-not-allowed")) {
-      showFieldError(emailError, "This project requires email verification. Try again — a verification link will be sent to the new address. If it persists, check Firebase Console → Authentication → Settings.");
-    } else if (code.includes("too-many-requests")) {
-      showFieldError(emailError, "Too many attempts — try again later.");
-    } else {
-      showFieldError(emailError, err?.message || "Could not update email.");
-    }
-  } finally {
-    emailSubmit.disabled = false;
-  }
 });
 
 // ---------- password change ----------
