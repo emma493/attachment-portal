@@ -84,6 +84,21 @@ function showFieldError(el, msg) {
   el.hidden = !msg;
 }
 
+// Password visibility toggles (login / signup / change password).
+document.addEventListener("click", (e) => {
+  const btn = e.target?.closest?.(".pw-toggle");
+  if (!btn) return;
+  const input = btn.closest(".pw-wrap")?.querySelector("input");
+  if (!input) return;
+  const showing = input.type === "text";
+  input.type = showing ? "password" : "text";
+  btn.classList.toggle("showing", !showing);
+  btn.setAttribute("aria-pressed", String(!showing));
+  const label = showing ? "Show password" : "Hide password";
+  btn.setAttribute("aria-label", label);
+  btn.setAttribute("title", label);
+});
+
 function hideAll() {
   loginSection.hidden = true;
   dashSection.hidden = true;

@@ -328,8 +328,7 @@ img.fp-thumb { display: block; }
 }
 
 .cta {
-  background: var(--navy);
-  color: #fff;
+  background: var(--navy);  color: #fff;
   font-weight: 800;
   font-size: 1.05rem;
   font-family: inherit;
@@ -353,6 +352,21 @@ img.fp-thumb { display: block; }
 #form-status.error { color: var(--red); }
 #form-status.ok, #form-status.success { color: var(--green); }
 progress { width: 100%; accent-color: var(--navy); }
+
+/* Password visibility toggle */
+.pw-wrap { position: relative; display: grid; }
+.pw-wrap input { width: 100%; padding-right: 2.8rem; }
+.pw-toggle {
+  position: absolute; right: 0.4rem; top: 50%; transform: translateY(-50%);
+  display: grid; place-items: center; width: 2.2rem; height: 2.2rem;
+  background: none; border: none; border-radius: 8px; cursor: pointer;
+  color: var(--muted); min-height: 0; padding: 0;
+}
+.pw-toggle:hover { color: var(--navy); background: var(--bg); }
+.pw-toggle:focus-visible { outline: 2px solid var(--navy); outline-offset: 2px; }
+.pw-toggle .icon-hide { display: none; }
+.pw-toggle.showing .icon-hide { display: block; }
+.pw-toggle.showing .icon-show { display: none; }
 
 /* Footer — navy like dvla.gov.gh */
 .site-footer { background: var(--navy); color: #fff; margin-top: 2.5rem; }
