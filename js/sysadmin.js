@@ -5,6 +5,9 @@ import {
   onAuthStateChanged,
   signOut,
   updatePassword,
+  updateEmail,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
 } from "firebase/auth";
 import {
   collection, query, orderBy, getDocs,
@@ -57,6 +60,10 @@ const passwordForm = document.getElementById("password-form");
 const passwordError = document.getElementById("password-error");
 const passwordOk = document.getElementById("password-ok");
 const passwordSubmit = document.getElementById("password-submit");
+const emailForm = document.getElementById("email-form");
+const emailError = document.getElementById("email-error");
+const emailOk = document.getElementById("email-ok");
+const emailSubmit = document.getElementById("email-submit");
 
 let allDocs = [];
 let selectedId = null;
@@ -463,6 +470,66 @@ signOutBtnM?.addEventListener("click", async () => {
   await signOut(auth).catch(() => {});
 });
 
+// ---------- email change ----------
+
+emailForm?.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  showFieldError(emailError, "");
+  if (emailOk) emailOk.hidden = true;
+  const user = auth?.currentUser;
+  if (!user) return;
+  const fd = new FormData(emailForm);
+  const newEmail = (fd.get("email") || "").toString().trim();
+  const currentPw = (fd.get("currentPassword") || "").toString();
+  if (!/^\S+@\S+\.\S+$/.test(newEmail)) {
+    showFieldError(emailError, "Enter a valid email address.");
+    return;
+  }
+  if (!currentPw) {
+    showFieldError(emailError, "Enter your current password to confirm.");
+    return;
+  }
+  if (user.email && newEmail.toLowerCase() === user.email.toLowerCase()) {
+    showFieldError(emailError, "That is already the current email.");
+    return;
+  }
+  emailSubmit.disabled = true;
+  try {
+    const cred = EmailAuthProvider.credential(user.email, currentPw);
+    await reauthenticateWithCredential(user, cred);
+    await updateEmail(user, newEmail);
+    try {
+      await updateDoc(adminDocRef(user.uid), { email: newEmail });
+    } catch { /* best effort — read path is UID-gated */ }
+    try {
+      await updateDoc(SETUP_REF(), { adminEmail: newEmail });
+    } catch { /* needs updated firestore.rules; Console edit otherwise */ }
+    emailForm.reset();
+    if (emailOk) {
+      emailOk.textContent = "Email updated. Use it next time you sign in.";
+      emailOk.hidden = false;
+    }
+    if (adminUser) adminUser.textContent = `Signed in as ${newEmail}`;
+    if (sideUser) sideUser.textContent = newEmail;
+    if (secEmail) secEmail.textContent = newEmail;
+  } catch (err) {
+    const code = err?.code || "";
+    if (code.includes("wrong-password") || code.includes("invalid-credential")) {
+      showFieldError(emailError, "Current password is incorrect.");
+    } else if (code.includes("email-already-in-use")) {
+      showFieldError(emailError, "That email is already in use.");
+    } else if (code.includes("invalid-email")) {
+      showFieldError(emailError, "Enter a valid email address.");
+    } else if (code.includes("requires-recent-login")) {
+      showFieldError(emailError, "For security, sign out and sign in again, then retry.");
+    } else {
+      showFieldError(emailError, err?.message || "Could not update email.");
+    }
+  } finally {
+    emailSubmit.disabled = false;
+  }
+});
+
 // ---------- password change ----------
 
 passwordForm?.addEventListener("submit", async (e) => {
@@ -470,14 +537,22 @@ passwordForm?.addEventListener("submit", async (e) => {
   showFieldError(passwordError, "");
   if (passwordOk) passwordOk.hidden = true;
   const user = auth?.currentUser;
-  const pw = (new FormData(passwordForm).get("password") || "").toString();
+  const fd = new FormData(passwordForm);
+  const pw = (fd.get("password") || "").toString();
+  const currentPw = (fd.get("currentPassword") || "").toString();
   if (!user) return;
+  if (!currentPw) {
+    showFieldError(passwordError, "Enter your current password to confirm.");
+    return;
+  }
   if (pw.length < 6) {
-    showFieldError(passwordError, "Password must be at least 6 characters.");
+    showFieldError(passwordError, "New password must be at least 6 characters.");
     return;
   }
   passwordSubmit.disabled = true;
   try {
+    const cred = EmailAuthProvider.credential(user.email, currentPw);
+    await reauthenticateWithCredential(user, cred);
     await updatePassword(user, pw);
     passwordForm.reset();
     if (passwordOk) {
@@ -485,8 +560,12 @@ passwordForm?.addEventListener("submit", async (e) => {
       passwordOk.hidden = false;
     }
   } catch (err) {
-    if ((err?.code || "").includes("requires-recent-login")) {
+    if ((err?.code || "").includes("wrong-password") || (err?.code || "").includes("invalid-credential")) {
+      showFieldError(passwordError, "Current password is incorrect.");
+    } else if ((err?.code || "").includes("requires-recent-login")) {
       showFieldError(passwordError, "For security, sign out and sign in again, then retry.");
+    } else if ((err?.code || "").includes("weak-password")) {
+      showFieldError(passwordError, "Password is too weak — use at least 6 characters.");
     } else {
       showFieldError(passwordError, err?.message || "Could not update password.");
     }

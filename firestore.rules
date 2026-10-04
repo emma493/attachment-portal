@@ -5,6 +5,7 @@ service cloud.firestore {
     function isAdmin() {
       return request.auth != null
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+        
     }
 
     // Students: create-only, must force status == pending
@@ -36,6 +37,7 @@ service cloud.firestore {
 
     // One-time setup flag. Publicly readable (boolean only) so the login
     // page can decide: show sign-up once, then sign-in only.
+    // The single admin may update adminEmail after re-auth (UID stays locked).
     match /config/setup {
       allow get: if true;
       allow list: if false;
@@ -43,7 +45,11 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['setupDone', 'adminUid', 'adminEmail', 'createdAt'])
         && request.resource.data.setupDone == true
         && request.resource.data.adminUid == request.auth.uid;
-      allow update: if false;
+      allow update: if request.auth != null
+        && resource.data.adminUid == request.auth.uid
+        && request.resource.data.adminUid == resource.data.adminUid
+        && request.resource.data.setupDone == true
+        && request.resource.data.adminEmail is string;
       allow delete: if false;
     }
 

@@ -150,20 +150,20 @@
           <p class="hint" id="auth-sub">Sign in with the staff account.</p>
 
           <form id="login-form" novalidate>
-            <label for="login-email">Email <span class="req" aria-hidden="true">*</span></label>
-            <input id="login-email" name="email" type="email" required autocomplete="username" placeholder="e.g. admin@dvla.gov.gh" />
-            <label for="login-password">Password <span class="req" aria-hidden="true">*</span></label>
+            <label for="login-email">Email</label>
+            <input id="login-email" name="email" type="email" required autocomplete="username" />
+            <label for="login-password">Password</label>
             <input id="login-password" name="password" type="password" required autocomplete="current-password" />
             <p id="login-error" class="field-error" role="alert" hidden></p>
             <button type="submit" class="cta" id="login-submit">Log in</button>
           </form>
 
           <form id="signup-form" novalidate hidden>
-            <label for="signup-email">Email <span class="req" aria-hidden="true">*</span></label>
-            <input id="signup-email" name="email" type="email" required autocomplete="username" placeholder="e.g. admin@dvla.gov.gh" />
-            <label for="signup-password">Password <span class="req" aria-hidden="true">*</span></label>
+            <label for="signup-email">Email</label>
+            <input id="signup-email" name="email" type="email" required autocomplete="username" />
+            <label for="signup-password">Password</label>
             <input id="signup-password" name="password" type="password" required autocomplete="new-password" minlength="6" placeholder="At least 6 characters" />
-            <label for="signup-confirm">Confirm password <span class="req" aria-hidden="true">*</span></label>
+            <label for="signup-confirm">Confirm password</label>
             <input id="signup-confirm" name="confirm" type="password" required autocomplete="new-password" minlength="6" />
             <p id="signup-error" class="field-error" role="alert" hidden></p>
             <button type="submit" class="cta" id="signup-submit">Create staff account</button>
@@ -226,9 +226,21 @@
                 <div class="detail-row"><dt>Staff account</dt><dd id="sec-email">—</dd></div>
                 <div class="detail-row"><dt>Staff sign-up</dt><dd>Locked — this portal allows exactly one staff account.</dd></div>
               </dl>
+              <h3>Change email</h3>
+              <form id="email-form" novalidate>
+                <label for="new-email">New email</label>
+                <input id="new-email" name="email" type="email" required autocomplete="email" />
+                <label for="email-current-password">Current password</label>
+                <input id="email-current-password" name="currentPassword" type="password" required autocomplete="current-password" />
+                <p id="email-error" class="field-error" role="alert" hidden></p>
+                <p id="email-ok" class="hint" role="status" hidden></p>
+                <button type="submit" class="cta" id="email-submit">Update email</button>
+              </form>
               <h3>Change password</h3>
               <form id="password-form" novalidate>
-                <label for="new-password">New password <span class="req" aria-hidden="true">*</span></label>
+                <label for="current-password">Current password</label>
+                <input id="current-password" name="currentPassword" type="password" required autocomplete="current-password" />
+                <label for="new-password">New password</label>
                 <input id="new-password" name="password" type="password" required autocomplete="new-password" minlength="6" />
                 <p id="password-error" class="field-error" role="alert" hidden></p>
                 <p id="password-ok" class="hint" role="status" hidden></p>

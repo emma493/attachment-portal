@@ -128,9 +128,11 @@
         errs.push({ field: "endDate", msg: "End date must be after start date" });
     }
     if (n === 2) {
-      Object.keys(FILE_LABELS).forEach(function (key) {
+      ["schoolLetter", "ghanaCard"].forEach(function (key) {
         if (!validFile(fileOf(key))) errs.push({ field: key, msg: FILE_LABELS[key] + " must be PDF, JPG or PNG under " + MAX_FILE_MB + "MB" });
       });
+      var cvFile = fileOf("cv");
+      if (cvFile && !validFile(cvFile)) errs.push({ field: "cv", msg: FILE_LABELS.cv + " must be PDF, JPG or PNG under " + MAX_FILE_MB + "MB" });
     }
     if (n === 3) {
       var consent = document.getElementById("consent-check");
@@ -163,7 +165,8 @@
     ];
     var docs = Object.keys(FILE_LABELS).map(function (key) {
       var f = fileOf(key);
-      return [FILE_LABELS[key], f ? f.name + " (" + (f.size / 1048576).toFixed(2) + " MB)" : "Missing"];
+      if (f) return [FILE_LABELS[key], f.name + " (" + (f.size / 1048576).toFixed(2) + " MB)"];
+      return [FILE_LABELS[key], key === "cv" ? "Not provided (optional)" : "Missing"];
     });
     function group(title, rows, step) {
       var inner = rows.map(function (r) {

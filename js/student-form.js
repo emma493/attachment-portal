@@ -88,15 +88,22 @@ form?.addEventListener("submit", async (e) => {
 
   try {
     const schoolLetterFile = data.get("schoolLetter");
-    const cvFile = data.get("cv");
+    const cvFile = (data.get("cv") && data.get("cv").size > 0) ? data.get("cv") : null;
     const ghanaCardFile = data.get("ghanaCard");
-    if (note) note.textContent = "Uploading 1 of 3: school letter…";
+    const totalUploads = cvFile ? 3 : 2;
+    let done = 0;
+    if (note) note.textContent = `Uploading 1 of ${totalUploads}: school letter…`;
     if (progress) progress.value = 20;
     const schoolLetterUrl = await uploadToCloudinary(schoolLetterFile);
-    if (note) note.textContent = "Uploading 2 of 3: CV…";
-    if (progress) progress.value = 45;
-    const cvUrl = await uploadToCloudinary(cvFile);
-    if (note) note.textContent = "Uploading 3 of 3: Ghana Card…";
+    done += 1;
+    let cvUrl = "";
+    if (cvFile) {
+      if (note) note.textContent = `Uploading ${done + 1} of ${totalUploads}: CV…`;
+      if (progress) progress.value = 45;
+      cvUrl = await uploadToCloudinary(cvFile);
+      done += 1;
+    }
+    if (note) note.textContent = `Uploading ${done + 1} of ${totalUploads}: Ghana Card…`;
     if (progress) progress.value = 65;
     const ghanaCardUrl = await uploadToCloudinary(ghanaCardFile);
     if (progress) progress.value = 70;

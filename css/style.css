@@ -102,7 +102,7 @@ form { display: grid; gap: 1rem; padding-bottom: 0.5rem; }
 }
 .step-eyebrow { margin: -0.7rem 0 0; font-size: 0.78rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
 .hint { margin: 0; color: var(--muted); font-size: 0.92rem; }
-label { display: grid; gap: 0.35rem; font-weight: 700; font-size: 0.95rem; color: var(--ink); }
+label { display: block; font-weight: 700; font-size: 0.95rem; color: var(--ink); }
 .field-hint { margin: 0; font-weight: 400; font-size: 0.88rem; color: var(--muted); }
 .row { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
 input, select {
