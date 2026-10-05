@@ -51,7 +51,6 @@ const statApproved = document.getElementById("stat-approved");
 const statRejected = document.getElementById("stat-rejected");
 const viewTitle = document.getElementById("view-title");
 const secEmail = document.getElementById("sec-email");
-const liveLine = document.getElementById("live-line");
 const adminShell = document.getElementById("admin-shell");
 const railToggle = document.getElementById("rail-toggle");
 const signOutBtnM = document.getElementById("signout-btn-m");
@@ -306,7 +305,6 @@ function showDashboard(user) {
   document.body.classList.add("authed");
   if (adminUser) adminUser.textContent = user?.email ? `Signed in as ${user.email}` : "";
   if (sideUser) sideUser.textContent = user?.email || "Signed in";
-  if (liveLine) liveLine.hidden = false;
   if (secEmail) secEmail.textContent = user?.email || "—";
   setMenuEnabled(true);
   const hashView = (location.hash || "").replace("#/", "");
@@ -317,7 +315,6 @@ function showDashboard(user) {
 function showLogin() {
   setMenuEnabled(false);
   document.body.classList.remove("authed");
-  if (liveLine) liveLine.hidden = true;
   allDocs = [];
   selectedId = null;
   markedForDelete.clear();
