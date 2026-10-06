@@ -10,7 +10,7 @@ import {
 } from "firebase/auth";
 import {
   collection, query, orderBy, getDocs,
-  doc, getDoc, setDoc, updateDoc, deleteDoc, serverTimestamp,
+  doc, getDoc, setDoc, updateDoc, serverTimestamp,
 } from "firebase/firestore";
 
 // Single-admin model: exactly one staff account exists. The page shows the
@@ -61,7 +61,6 @@ const passwordSubmit = document.getElementById("password-submit");
 
 let allDocs = [];
 let selectedId = null;
-const markedForDelete = new Set();
 let loading = false;
 let setupDone = null; // null = unknown yet
 let currentView = "overview";
@@ -317,7 +316,6 @@ function showLogin() {
   document.body.classList.remove("authed");
   allDocs = [];
   selectedId = null;
-  markedForDelete.clear();
   showAuth(setupDone ? "login" : "signup");
 }
 
@@ -616,21 +614,6 @@ function renderList() {
   }
   listEl.innerHTML = "";
   for (const s of rows) {
-    const wrap = document.createElement("div");
-    wrap.className = "row-wrap" + (s.id === selectedId ? " selected" : "");
-
-    const check = document.createElement("input");
-    check.type = "checkbox";
-    check.className = "row-check";
-    check.checked = markedForDelete.has(s.id);
-    check.setAttribute("aria-label", `Select submission from ${s.fullName || "unnamed applicant"}`);
-    check.addEventListener("click", (e) => e.stopPropagation());
-    check.addEventListener("change", () => {
-      if (check.checked) markedForDelete.add(s.id);
-      else markedForDelete.delete(s.id);
-      updateBulkBar();
-    });
-
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "row-item" + (s.id === selectedId ? " selected" : "");
@@ -649,34 +632,8 @@ function renderList() {
       renderDetail(s.id);
       document.getElementById("detail-card")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
-    wrap.append(check, btn);
-    listEl.appendChild(wrap);
+    listEl.appendChild(btn);
   }
-  updateBulkBar();
-}
-
-function updateBulkBar() {
-  const bar = document.getElementById("bulk-bar");
-  const count = document.getElementById("bulk-count");
-  const n = markedForDelete.size;
-  if (bar) bar.hidden = n === 0;
-  if (count) count.textContent = n === 1 ? "1 selected" : `${n} selected`;
-}
-
-async function deleteByIds(ids) {
-  for (const id of ids) {
-    await deleteDoc(doc(db, "submissions", id));
-  }
-  allDocs = allDocs.filter((s) => !ids.includes(s.id));
-  ids.forEach((id) => markedForDelete.delete(id));
-  if (selectedId && ids.includes(selectedId)) {
-    selectedId = null;
-    if (detailCard) detailCard.hidden = true;
-    if (detailEl) detailEl.innerHTML = "";
-  }
-  updateStats();
-  renderList();
-  renderAttention();
 }
 
 function renderAttention() {
@@ -850,11 +807,7 @@ function renderDetail(id) {
   rejectBtn.type = "button";
   rejectBtn.id = "reject-btn";
   rejectBtn.textContent = "Reject";
-  const deleteBtn = document.createElement("button");
-  deleteBtn.type = "button";
-  deleteBtn.id = "delete-btn";
-  deleteBtn.textContent = "Delete";
-  actions.append(approveBtn, rejectBtn, deleteBtn);
+  actions.append(approveBtn, rejectBtn);
 
   detailEl.append(h, ref, dl, filesTitle, filesList, noteLabel, actions);
 
@@ -862,19 +815,6 @@ function renderDetail(id) {
   rejectBtn.addEventListener("click", () => {
     if (!window.confirm(`Reject application from ${s.fullName || "this applicant"}?`)) return;
     decide(s, "rejected", approveBtn, rejectBtn);
-  });
-  deleteBtn.addEventListener("click", async () => {
-    if (!window.confirm(`Permanently delete the application from ${s.fullName || "this applicant"}? This cannot be undone.`)) return;
-    deleteBtn.disabled = true;
-    setStatus("Deleting…");
-    try {
-      await deleteByIds([s.id]);
-      setStatus("Submission deleted.", "ok");
-    } catch (err) {
-      console.error(err);
-      setStatus(`Delete failed: ${err?.message || err}`, "error");
-      deleteBtn.disabled = false;
-    }
   });
 }
 
@@ -905,27 +845,3 @@ async function decide(s, nextStatus, approveBtn, rejectBtn) {
 refreshBtn?.addEventListener("click", () => loadSubmissions());
 statusFilter?.addEventListener("change", () => { renderList(); syncFilterNav(); });
 searchInput?.addEventListener("input", renderList);
-
-document.getElementById("bulk-clear")?.addEventListener("click", () => {
-  markedForDelete.clear();
-  renderList();
-});
-
-document.getElementById("bulk-delete")?.addEventListener("click", async () => {
-  const ids = [...markedForDelete];
-  if (!ids.length) return;
-  const btn = document.getElementById("bulk-delete");
-  const label = ids.length === 1 ? "this submission" : `these ${ids.length} submissions`;
-  if (!window.confirm(`Permanently delete ${label}? This cannot be undone.`)) return;
-  btn.disabled = true;
-  setStatus(`Deleting ${ids.length}…`);
-  try {
-    await deleteByIds(ids);
-    setStatus(`Deleted ${ids.length} submission${ids.length === 1 ? "" : "s"}.`, "ok");
-  } catch (err) {
-    console.error(err);
-    setStatus(`Delete failed: ${err?.message || err}`, "error");
-  } finally {
-    btn.disabled = false;
-  }
-});
